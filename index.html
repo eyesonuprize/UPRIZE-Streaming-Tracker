@@ -47,6 +47,16 @@
   .links { font-size: 12px; color: var(--muted); margin-top: 4px; margin-left: 74px; }
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
+  
+  /* Phần thiết kế riêng cho Peak Showcase Cards */
+  .peak-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .peak-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; align-items: center; gap: 14px; }
+  .peak-thumb { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; background: var(--line); flex-shrink: 0; }
+  .peak-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+  .peak-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .peak-stat { font-size: 13px; color: var(--muted); }
+  .peak-badge { font-weight: 700; color: var(--accent); }
+
   footer { color: var(--muted); font-size: 12px; margin-top: 24px; line-height: 1.6; }
   #tip { position: absolute; display: none; pointer-events: none; z-index: 9; white-space: nowrap;
     background: #06222f; border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px;
@@ -63,6 +73,12 @@
   </header>
 
   <section class="cards" id="cards"></section>
+
+  <!-- Khung hiển thị Peak nổi bật -->
+  <section class="panel">
+    <h2>Thành tích đỉnh cao (Peak Charts)</h2>
+    <div class="peak-container" id="peakCards"></div>
+  </section>
 
   <section class="panel">
     <h2>Bảng xếp hạng · Việt Nam</h2>
@@ -330,6 +346,72 @@ function rankCell(key) {
     : ch > 0 ? ` <span class="up">▲${ch}</span>` : ` <span class="down">▼${-ch}</span>`;
   return `<b>#${v}</b>${tag}`;
 }
+
+// ---------- TÍNH TOÁN & HIỂN THỊ PEAK (THÀNH TÍCH ĐỈNH CAO) ----------
+function calculatePeaks() {
+  const chartsToScan = ["spotify_vn", "apple_music_vn", "itunes_vn"];
+  const chartNames = { spotify_vn: "Spotify VN", apple_music_vn: "Apple Music VN", itunes_vn: "iTunes VN" };
+  
+  const targets = [{ id: ALBUM, name: "Album THĂNG", thumb: "" }];
+  tracks.forEach(t => {
+    targets.push({ 
+      id: t.id, 
+      name: t.title, 
+      thumb: t.youtube_id ? `https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg` : "" 
+    });
+  });
+
+  let results = [];
+
+  targets.forEach(target => {
+    let bestRank = 9999;
+    let bestChart = "";
+    let bestDate = "";
+
+    const rankDatesList = Object.keys(sheet.ranks);
+    rankDatesList.forEach(date => {
+      const dayData = sheet.ranks[date];
+      chartsToScan.forEach(chartKey => {
+        const lookupKey = target.id === ALBUM ? chartKey : `${chartKey}:${target.id}`;
+        const rankVal = dayData[lookupKey];
+
+        if (typeof rankVal === "number" && rankVal < bestRank) {
+          bestRank = rankVal;
+          bestChart = chartNames[chartKey];
+          bestDate = date;
+        }
+      });
+    });
+
+    if (bestRank < 9999) {
+      results.push({ ...target, rank: bestRank, chart: bestChart, date: bestDate });
+    }
+  });
+
+  results.sort((a, b) => a.rank - b.rank);
+  return results.slice(0, 4); // Lấy top 4 bài có thành tích cao nhất
+}
+
+function renderPeaks() {
+  const peaks = calculatePeaks();
+  const container = document.getElementById("peakCards");
+  if (!peaks.length) {
+    container.innerHTML = '<div class="empty">Chưa có dữ liệu tính Peak.</div>';
+    return;
+  }
+
+  container.innerHTML = peaks.map(p => `
+    <div class="peak-card">
+      <img class="peak-thumb" src="${p.thumb || 'https://via.placeholder.com/64'}" alt="" onerror="this.src='https://via.placeholder.com/64'">
+      <div class="peak-info">
+        <div class="peak-title">${p.name}</div>
+        <div class="peak-stat">Cao nhất: <span class="peak-badge">#${p.rank}</span> trên ${p.chart}</div>
+        <div class="peak-stat" style="font-size: 11px;">Ngày đạt: ${p.date}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
 function renderRanks() {
   if (!rankDates().length) {
     document.getElementById("ranks").innerHTML = '<div class="empty">Chưa có dữ liệu thứ hạng.</div>';
@@ -341,6 +423,7 @@ function renderRanks() {
   const body = rowFor("<b>Album THĂNG</b>", ALBUM) + tracks.map(t => rowFor(t.title, t.id)).join("");
   document.getElementById("ranks").innerHTML = `<table>${head}${body}</table>`;
 }
+
 function renderRankChart() {
   const key = rTrack === ALBUM ? rChart : rChart + ":" + rTrack;
   drawChart(document.getElementById("rankChart"), rankSeries(key), "#89CFF0", { invert: true });
@@ -399,6 +482,7 @@ function render() {
   parts.push("Trang làm mới lúc " + new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }));
   document.getElementById("updated").textContent = parts.join(" · ");
   renderCards();
+  renderPeaks();     {/* Gọi hàm render khung Peak */}
   renderRanks();
   renderChartMain();
   renderRankChart();
