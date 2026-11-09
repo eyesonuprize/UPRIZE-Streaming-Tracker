@@ -86,10 +86,24 @@ def read_ranks(text):
         entry = {}
         for h, v in zip(head[1:], r[1:]):
             n = digits(v)
-            if h in RANK_COLS and n is not None:
+            if (h in RANK_COLS or ":" in h) and n is not None:
                 entry[h] = n
         if entry:
             out[r[0].strip()] = entry
+    return out
+
+
+def read_track_ranks(text):
+    """Tab 'Xếp hạng bài': Ngày | Bài (ID) | Bảng xếp hạng | Thứ hạng"""
+    rows = list(csv.reader(io.StringIO(text)))
+    out = {}
+    for r in rows[1:]:
+        if len(r) < 4 or not r[0].strip():
+            continue
+        date, tid, chart, rank = r[0].strip(), r[1].strip(), r[2].strip(), digits(r[3])
+        if not tid or not chart or rank is None:
+            continue
+        out.setdefault(date, {}).setdefault(tid, {})[chart] = rank
     return out
 
 
@@ -120,6 +134,10 @@ def main():
     if r_url:
         sheet["ranks"] = read_ranks(fetch_text(r_url))
         print(f"Thứ hạng: {len(sheet['ranks'])} ngày")
+    t_url = os.environ.get("SHEET_TRACK_RANK_CSV", "")
+    if t_url:
+        sheet["track_ranks"] = read_track_ranks(fetch_text(t_url))
+        print(f"Xếp hạng bài: {len(sheet['track_ranks'])} ngày")
     sheet["updated"] = now.isoformat(timespec="minutes")
     SHEET.write_text(json.dumps(sheet, ensure_ascii=False), encoding="utf-8")
 
