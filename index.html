@@ -58,7 +58,6 @@
     <div class="controls">
       <button data-metric="youtube_views" class="on">YouTube</button>
       <button data-metric="spotify_streams">Spotify</button>
-      <button data-metric="apple_plays">Apple Music</button>
       <span style="flex:1"></span>
       <select id="trackSel"></select>
       <button data-mode="gain" class="on">Tăng mỗi ngày</button>
@@ -73,7 +72,7 @@
 
   <footer>
     Số liệu được ghi lại mỗi ngày. Lượt tăng mỗi ngày = chênh lệch giữa hai snapshot liên tiếp.
-    Spotify và Apple Music không có API công khai cho số stream, nên có thể thiếu nếu chưa nhập.
+    Spotify không có API công khai cho số stream, nên số này được nhập tay và có thể thiếu.
   </footer>
 </div>
 
@@ -81,7 +80,6 @@
 const METRICS = {
   youtube_views: { name: "YouTube", color: "var(--yt)" },
   spotify_streams: { name: "Spotify", color: "var(--sp)" },
-  apple_plays: { name: "Apple Music", color: "var(--am)" },
 };
 const fmt = n => n == null ? "–" : n.toLocaleString("vi-VN");
 const fmtDelta = n => n == null ? "–" : (n >= 0 ? "+" : "") + n.toLocaleString("vi-VN");
