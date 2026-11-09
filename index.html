@@ -6,11 +6,9 @@
 <title>UPRIZE Tracker</title>
 <style>
   :root {
-    --bg: #0e0e13; --card: #17171f; --line: #262633; --text: #f2f2f6; --muted: #8b8b9c;
-    --yt: #ff4d4d; --sp: #1ed760; --am: #ff5c8a; --accent: #9b8cff;
-  }
-  @media (prefers-color-scheme: light) {
-    :root { --bg: #f6f6fa; --card: #fff; --line: #e4e4ee; --text: #15151c; --muted: #6b6b7c; }
+    --bg: #0b1218; --card: #121c25; --line: #1f2d38;
+    --text: #e8f6fd; --muted: #7fa3b5;
+    --accent: #89CFF0; --accent-ink: #06222f; --bad: #ff9e9e;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
@@ -19,33 +17,36 @@
   header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   h1 { margin: 0; font-size: 26px; letter-spacing: .04em; }
   h1 span { color: var(--accent); }
-  .updated { color: var(--muted); font-size: 13px; }
+  h2 { font-size: 16px; margin: 0 0 12px; font-weight: 600; }
+  .updated, .muted { color: var(--muted); font-size: 13px; }
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
-  .card .label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 8px; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-  .card .big { font-size: 28px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
-  .card .delta { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-  .up { color: var(--sp); }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 20px; }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .card, .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .panel { margin-bottom: 20px; }
+  .label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .big { font-size: 28px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .delta { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .up { color: var(--accent); }
+  .down { color: var(--bad); }
+  .na { color: var(--muted); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
   button, select { background: transparent; color: var(--text); border: 1px solid var(--line);
     border-radius: 999px; padding: 6px 14px; font: inherit; cursor: pointer; }
-  button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-  select { border-radius: 8px; }
+  button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  select { border-radius: 8px; background: var(--card); }
   svg { width: 100%; height: auto; display: block; }
   .empty { color: var(--muted); text-align: center; padding: 36px 8px; }
+  .scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   th, td { text-align: right; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th:first-child, td:first-child { text-align: left; }
   th { color: var(--muted); font-weight: 500; font-size: 13px; }
-  .scroll { overflow-x: auto; }
   tr:last-child td { border-bottom: 0; }
-  .na { color: var(--muted); }
   .links { font-size: 12px; color: var(--muted); margin-top: 4px; margin-left: 74px; }
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
-  footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 24px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -58,161 +59,275 @@
   <section class="cards" id="cards"></section>
 
   <section class="panel">
+    <h2>Thứ hạng · Album THĂNG (Việt Nam)</h2>
+    <div class="scroll" id="ranks"></div>
+  </section>
+
+  <section class="panel">
+    <div class="controls" id="metricBtns"></div>
     <div class="controls">
-      <button data-metric="youtube_views" class="on">YouTube</button>
-      <button data-metric="spotify_streams">Spotify</button>
+      <div id="modeBtns" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       <span style="flex:1"></span>
       <select id="trackSel"></select>
-      <button data-mode="gain" class="on">Tăng mỗi ngày</button>
-      <button data-mode="total">Tổng</button>
     </div>
     <div id="chart"></div>
   </section>
 
-  <section class="panel scroll">
-    <table id="table"></table>
+  <section class="panel">
+    <div class="controls">
+      <h2 style="margin:0;flex:1">Thứ hạng theo thời gian</h2>
+      <select id="rankSel"></select>
+    </div>
+    <div id="rankChart"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Theo từng bài</h2>
+    <div class="scroll"><table id="table"></table></div>
   </section>
 
   <footer>
-    Số liệu được ghi lại mỗi ngày. Lượt tăng mỗi ngày = chênh lệch giữa hai snapshot liên tiếp.
-    Spotify không có API công khai cho số stream, nên số này được nhập tay và có thể thiếu.
+    YouTube cập nhật mỗi giờ. Spotify, người nghe hàng tháng và thứ hạng nhập từ Google Sheet.
+    Chế độ "Theo giờ" chỉ có với YouTube. Thứ hạng càng nhỏ càng cao (#1 là tốt nhất).
+    Spotify không có API công khai cho số stream, nên số này nhập tay và có thể thiếu.
   </footer>
 </div>
 
 <script>
 const METRICS = {
-  youtube_views: { name: "YouTube", color: "var(--yt)" },
-  spotify_streams: { name: "Spotify", color: "var(--sp)" },
+  yt: { name: "YouTube (lượt xem)", color: "#89CFF0", track: true },
+  sp: { name: "Spotify (stream)", color: "#5fb8e0", track: true },
+  ls: { name: "Người nghe hàng tháng", color: "#bfe9fb", track: false },
 };
-const fmt = n => n == null ? "–" : n.toLocaleString("vi-VN");
-const fmtDelta = n => n == null ? "–" : (n >= 0 ? "+" : "") + n.toLocaleString("vi-VN");
+const MODES = { hour: "Theo giờ", day: "Theo ngày", total: "Tổng" };
+const RANKS = { spotify_vn: "Spotify VN", apple_music_vn: "Apple Music VN", itunes_vn: "iTunes VN" };
 
-let tracks = [], history = [];
-let metric = "youtube_views", mode = "gain", sel = "all";
+const fmt = n => n == null ? "–" : n.toLocaleString("vi-VN");
+const fmtD = n => n == null ? "–" : (n > 0 ? "+" : "") + n.toLocaleString("vi-VN");
+
+let tracks = [], snaps = [], sheet = { stream: {}, ranks: {} };
+let metric = "yt", mode = "day", sel = "all", rankKey = "spotify_vn";
+
+async function getJSON(url, fallback) {
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    return await r.json();
+  } catch (e) { return fallback; }
+}
 
 async function load() {
-  try {
-    const [t, h] = await Promise.all([
-      fetch("tracks.json").then(r => r.json()),
-      fetch("data/history.json").then(r => r.json()),
-    ]);
-    tracks = t.tracks; history = h;
-  } catch (e) {
-    document.getElementById("chart").innerHTML =
-      '<div class="empty">Không tải được dữ liệu. Hãy mở trang qua máy chủ (ví dụ <code>python -m http.server</code>) thay vì mở file trực tiếp.</div>';
-    return;
-  }
-  document.getElementById("updated").textContent = history.length
-    ? "Cập nhật lần cuối: " + history[history.length - 1].date : "Chưa có dữ liệu";
-  const s = document.getElementById("trackSel");
-  s.innerHTML = '<option value="all">Tất cả bài</option>' +
-    tracks.map(t => `<option value="${t.id}">${t.title}</option>`).join("");
-  s.onchange = () => { sel = s.value; render(); };
-  document.querySelectorAll("[data-metric]").forEach(b => b.onclick = () => {
-    metric = b.dataset.metric; toggle("[data-metric]", b); render(); });
-  document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
-    mode = b.dataset.mode; toggle("[data-mode]", b); render(); });
+  const t = await getJSON("tracks.json", { tracks: [] });
+  tracks = t.tracks || [];
+  const h = await getJSON("data/history.json", []);
+  snaps = (Array.isArray(h) ? h : []).filter(x => x.yt).sort((a, b) => a.ts < b.ts ? -1 : 1);
+  const s = await getJSON("data/sheet.json", {});
+  sheet = { stream: s.stream || {}, ranks: s.ranks || {}, updated: s.updated };
+
+  const ts = document.getElementById("trackSel");
+  ts.innerHTML = '<option value="all">Tất cả bài</option>' +
+    tracks.map(x => `<option value="${x.id}">${x.title}</option>`).join("");
+  ts.onchange = () => { sel = ts.value; render(); };
+
+  const rs = document.getElementById("rankSel");
+  rs.innerHTML = Object.entries(RANKS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  rs.onchange = () => { rankKey = rs.value; renderRankChart(); };
+
   render();
 }
-function toggle(q, btn) {
-  document.querySelectorAll(q).forEach(b => b.classList.toggle("on", b === btn));
-}
 
-// chuỗi tổng theo ngày cho 1 metric, 1 bài hoặc tất cả
-function series(m, id) {
-  return history.map(h => {
-    const ids = id === "all" ? Object.keys(h.tracks) : [id];
-    let sum = 0, any = false;
-    for (const k of ids) {
-      const v = h.tracks[k] && h.tracks[k][m];
-      if (v != null) { sum += v; any = true; }
-    }
-    return { date: h.date, v: any ? sum : null };
+function renderButtons() {
+  document.getElementById("metricBtns").innerHTML = Object.entries(METRICS).map(([k, m]) =>
+    `<button data-m="${k}" class="${k === metric ? "on" : ""}">${m.name}</button>`).join("");
+  document.getElementById("modeBtns").innerHTML = Object.entries(MODES).map(([k, v]) =>
+    `<button data-mo="${k}" class="${k === mode ? "on" : ""}" ${k === "hour" && metric !== "yt" ? "disabled" : ""}>${v}</button>`).join("");
+  document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => {
+    metric = b.dataset.m;
+    if (metric !== "yt" && mode === "hour") mode = "day";
+    render();
   });
-}
-function gains(s) {
-  return s.map((p, i) => ({
-    date: p.date,
-    v: i > 0 && p.v != null && s[i - 1].v != null ? p.v - s[i - 1].v : null,
-  }));
-}
-function latestDelta(m, id, days) {
-  const s = series(m, id).filter(p => p.v != null);
-  if (s.length < 2) return null;
-  const last = s[s.length - 1];
-  const prev = s[Math.max(0, s.length - 1 - days)];
-  return last.v - prev.v;
-}
-function latest(m, id) {
-  const s = series(m, id).filter(p => p.v != null);
-  return s.length ? s[s.length - 1].v : null;
+  document.querySelectorAll("[data-mo]").forEach(b => b.onclick = () => { mode = b.dataset.mo; render(); });
+  document.getElementById("trackSel").disabled = !METRICS[metric].track;
 }
 
+// ---------- dữ liệu ----------
+const idsFor = s => s === "all" ? tracks.map(t => t.id) : [s];
+function sumOf(obj, ids) {
+  let s = 0, any = false;
+  for (const id of ids) { const v = obj && obj[id]; if (typeof v === "number") { s += v; any = true; } }
+  return any ? s : null;
+}
+function lastPerDate(list) {
+  const m = new Map();
+  for (const p of list) m.set(p.date, p);
+  return [...m.values()];
+}
+function ytPts(s) {
+  return snaps.map(h => ({
+    date: h.date,
+    label: h.ts.slice(8, 10) + "/" + h.ts.slice(5, 7) + " " + h.ts.slice(11, 16),
+    v: sumOf(h.yt, idsFor(s)),
+  })).filter(p => p.v != null);
+}
+function ytDaily(s) {
+  return lastPerDate(ytPts(s)).map(p => ({ ...p, label: p.date }));
+}
+function streamPts(s) {
+  return Object.keys(sheet.stream).sort().map(d => ({
+    date: d, label: d, v: sumOf(sheet.stream[d], idsFor(s)),
+  })).filter(p => p.v != null);
+}
+function listenerPts() {
+  return Object.keys(sheet.stream).sort().map(d => ({
+    date: d, label: d,
+    v: typeof sheet.stream[d].nguoi_nghe_thang === "number" ? sheet.stream[d].nguoi_nghe_thang : null,
+  })).filter(p => p.v != null);
+}
+function basePts(m, s) {
+  if (m === "yt") return mode === "hour" ? ytPts(s).slice(-168) : ytDaily(s);
+  if (m === "sp") return streamPts(s);
+  return listenerPts();
+}
+function chartPts(m, s) {
+  const b = basePts(m, s);
+  if (mode === "total") return b;
+  return b.slice(1).map((p, i) => ({ label: p.label, date: p.date, v: p.v - b[i].v }));
+}
+function latestDelta(pts) {
+  if (!pts.length) return [null, null];
+  const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+  return [last.v, prev ? last.v - prev.v : null];
+}
+
+// ---------- vẽ biểu đồ ----------
+function drawChart(el, pts, color, isGain, opts = {}) {
+  pts = pts.filter(p => p.v != null);
+  if (!pts.length) {
+    el.innerHTML = '<div class="empty">Chưa đủ dữ liệu cho biểu đồ này. Cần ít nhất 2 mốc để tính mức tăng.</div>';
+    return;
+  }
+  const W = 800, H = 280, L = 64, R = 12, T = 12, B = 28;
+  const inv = !!opts.invert;
+  const bar = isGain && !inv;
+  const vals = pts.map(p => p.v);
+  const min = bar ? Math.min(0, ...vals) : Math.min(...vals);
+  const max = bar ? Math.max(0, ...vals) : Math.max(...vals);
+  const span = (max - min) || 1;
+  const yOf = v => inv
+    ? T + (H - T - B) * ((v - min) / span)
+    : T + (H - T - B) * (1 - (v - min) / span);
+  const x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1));
+  let g = "";
+  for (let k = 0; k <= 4; k++) {
+    const v = min + span * k / 4, yy = yOf(v);
+    g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#1f2d38"/>
+          <text x="${L - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#7fa3b5">${inv ? "#" : ""}${Math.round(v).toLocaleString("vi-VN")}</text>`;
+  }
+  const step = Math.max(1, Math.ceil(pts.length / 7));
+  pts.forEach((p, i) => {
+    if (i % step === 0) {
+      const lab = p.label.length === 10 ? p.label.slice(5) : p.label;
+      g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#7fa3b5">${lab}</text>`;
+    }
+  });
+  if (bar) {
+    const bw = Math.max(3, Math.min(36, (W - L - R) / pts.length * .7));
+    const y0 = yOf(0);
+    pts.forEach((p, i) => {
+      const y1 = yOf(p.v);
+      g += `<rect x="${x(i) - bw / 2}" y="${Math.min(y0, y1)}" width="${bw}" height="${Math.max(1, Math.abs(y0 - y1))}" rx="3" fill="${color}"><title>${p.label}: ${fmtD(p.v)}</title></rect>`;
+    });
+  } else {
+    g += `<polyline fill="none" stroke="${color}" stroke-width="2.5" points="${pts.map((p, i) => x(i) + "," + yOf(p.v)).join(" ")}"/>`;
+    pts.forEach((p, i) => g += `<circle cx="${x(i)}" cy="${yOf(p.v)}" r="3.5" fill="${color}"><title>${p.label}: ${fmt(p.v)}</title></circle>`);
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+}
+
+// ---------- hiển thị ----------
 function renderCards() {
-  document.getElementById("cards").innerHTML = Object.entries(METRICS).map(([m, info]) => {
-    const d = latestDelta(m, "all", 1);
+  const cards = [
+    ["Lượt xem YouTube", ytDaily("all")],
+    ["Spotify (stream)", streamPts("all")],
+    ["Người nghe hàng tháng", listenerPts()],
+  ];
+  document.getElementById("cards").innerHTML = cards.map(([name, pts]) => {
+    const [cur, d] = latestDelta(pts);
+    const cls = d > 0 ? "up" : d < 0 ? "down" : "";
     return `<div class="card">
-      <div class="label"><span class="dot" style="background:${info.color}"></span>${info.name}</div>
-      <div class="big">${fmt(latest(m, "all"))}</div>
-      <div class="delta"><span class="${d > 0 ? "up" : ""}">${fmtDelta(d)}</span> so với hôm qua</div>
+      <div class="label"><span class="dot"></span>${name}</div>
+      <div class="big">${fmt(cur)}</div>
+      <div class="delta ${cls}">${d == null ? "– so với hôm qua" : fmtD(d) + " so với hôm qua"}</div>
     </div>`;
   }).join("");
 }
 
-function renderChart() {
-  const el = document.getElementById("chart");
-  const base = series(metric, sel);
-  const pts = (mode === "gain" ? gains(base) : base).filter(p => p.v != null);
-  if (pts.length < 1 || (mode === "gain" && pts.length < 1)) {
-    el.innerHTML = '<div class="empty">Chưa đủ dữ liệu cho biểu đồ này. Cần ít nhất 2 ngày số liệu để tính lượt tăng.</div>';
+function renderRanks() {
+  const dates = Object.keys(sheet.ranks).sort();
+  if (!dates.length) {
+    document.getElementById("ranks").innerHTML = '<div class="empty">Chưa có dữ liệu thứ hạng.</div>';
     return;
   }
-  const W = 800, H = 280, L = 60, R = 12, T = 12, B = 28;
-  const max = Math.max(...pts.map(p => p.v), 1);
-  const min = mode === "total" ? Math.min(...pts.map(p => p.v)) : 0;
-  const span = (max - min) || 1;
-  const x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1));
-  const y = v => T + (H - T - B) * (1 - (v - min) / span);
-  const color = METRICS[metric].color;
-  let g = "";
-  for (let i = 0; i <= 4; i++) {
-    const v = min + span * i / 4, yy = y(v);
-    g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="var(--line)"/>
-          <text x="${L - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(v).toLocaleString("vi-VN")}</text>`;
-  }
-  const step = Math.ceil(pts.length / 7);
-  pts.forEach((p, i) => { if (i % step === 0)
-    g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.date.slice(5)}</text>`; });
-  if (mode === "gain") {
-    const bw = Math.min(36, (W - L - R) / pts.length * .7);
-    pts.forEach((p, i) => g += `<rect x="${x(i) - bw / 2}" y="${y(p.v)}" width="${bw}" height="${y(0) - y(p.v)}" rx="3" fill="${color}"><title>${p.date}: ${fmtDelta(p.v)}</title></rect>`);
-  } else {
-    g += `<polyline fill="none" stroke="${color}" stroke-width="2.5" points="${pts.map((p, i) => x(i) + "," + y(p.v)).join(" ")}"/>`;
-    pts.forEach((p, i) => g += `<circle cx="${x(i)}" cy="${y(p.v)}" r="3.5" fill="${color}"><title>${p.date}: ${fmt(p.v)}</title></circle>`);
-  }
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Biểu đồ ${METRICS[metric].name}">${g}</svg>`;
+  const rows = Object.entries(RANKS).map(([k, name]) => {
+    const pts = dates.filter(d => typeof sheet.ranks[d][k] === "number").map(d => ({ date: d, v: sheet.ranks[d][k] }));
+    if (!pts.length) return `<tr><td>${name}</td><td class="na">–</td><td class="na">–</td><td class="na">–</td></tr>`;
+    const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+    const ch = prev ? prev.v - last.v : null; // dương = lên hạng
+    const txt = ch == null ? "–" : ch === 0 ? "không đổi" : ch > 0 ? `▲ ${ch} bậc` : `▼ ${-ch} bậc`;
+    const cls = ch > 0 ? "up" : ch < 0 ? "down" : "na";
+    return `<tr><td>${name}</td><td>#${last.v}</td><td class="${cls}">${txt}</td><td class="na">${last.date.slice(5)}</td></tr>`;
+  }).join("");
+  document.getElementById("ranks").innerHTML =
+    `<table><tr><th>Bảng xếp hạng</th><th>Hiện tại</th><th>So với lần trước</th><th>Ngày</th></tr>${rows}</table>`;
+}
+
+function renderRankChart() {
+  const pts = Object.keys(sheet.ranks).sort()
+    .filter(d => typeof sheet.ranks[d][rankKey] === "number")
+    .map(d => ({ date: d, label: d, v: sheet.ranks[d][rankKey] }));
+  drawChart(document.getElementById("rankChart"), pts, "#89CFF0", false, { invert: true });
+}
+
+function renderChart() {
+  drawChart(document.getElementById("chart"), chartPts(metric, sel), METRICS[metric].color, mode !== "total");
 }
 
 function renderTable() {
-  const head = `<tr><th>Bài hát</th>${Object.values(METRICS).map(m => `<th>${m.name}</th><th>+1 ngày</th>`).join("")}</tr>`;
+  const head = `<tr><th>Bài hát</th><th>YouTube</th><th>+1 ngày</th><th>Spotify</th><th>+1 ngày</th></tr>`;
   const rows = tracks.map(t => {
-    const cells = Object.keys(METRICS).map(m => {
-      const v = latest(m, t.id), d = latestDelta(m, t.id, 1);
-      return `<td class="${v == null ? "na" : ""}">${fmt(v)}</td><td class="${d > 0 ? "up" : "na"}">${fmtDelta(d)}</td>`;
-    }).join("");
+    const [yc, yd] = latestDelta(ytDaily(t.id));
+    const [sc, sd] = latestDelta(streamPts(t.id));
     const thumb = t.youtube_id
       ? `<img src="https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg" alt="" width="64" height="36" loading="lazy" style="object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:10px">`
       : `<span style="display:inline-block;width:64px;height:36px;border-radius:6px;background:var(--line);vertical-align:middle;margin-right:10px"></span>`;
     const links = [
       t.youtube_id ? `<a href="https://www.youtube.com/watch?v=${t.youtube_id}" target="_blank" rel="noopener">YouTube</a>` : "",
-      t.spotify_url ? `<a href="${t.spotify_url}" target="_blank" rel="noopener">Spotify</a>` : ""
+      t.spotify_url ? `<a href="${t.spotify_url}" target="_blank" rel="noopener">Spotify</a>` : "",
     ].filter(Boolean).join(" · ");
-    return `<tr><td>${thumb}<span>${t.title}</span><div class="links">${links}</div></td>${cells}</tr>`;
+    return `<tr>
+      <td>${thumb}<span>${t.title}</span><div class="links">${links}</div></td>
+      <td class="${yc == null ? "na" : ""}">${fmt(yc)}</td>
+      <td class="${yd > 0 ? "up" : "na"}">${fmtD(yd)}</td>
+      <td class="${sc == null ? "na" : ""}">${fmt(sc)}</td>
+      <td class="${sd > 0 ? "up" : "na"}">${fmtD(sd)}</td>
+    </tr>`;
   }).join("");
   document.getElementById("table").innerHTML = head + rows;
 }
 
-function render() { renderCards(); renderChart(); renderTable(); }
+function render() {
+  const last = snaps[snaps.length - 1];
+  const parts = [last ? "YouTube: " + last.ts.replace("T", " ").slice(0, 16) : "YouTube: chưa có"];
+  if (sheet.updated) parts.push("Sheet: " + sheet.updated.replace("T", " ").slice(0, 16));
+  document.getElementById("updated").textContent = "Cập nhật · " + parts.join(" · ");
+  renderButtons();
+  renderCards();
+  renderRanks();
+  renderChart();
+  renderRankChart();
+  renderTable();
+}
+
 load();
 </script>
 </body>
