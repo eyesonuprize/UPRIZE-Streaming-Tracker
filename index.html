@@ -354,10 +354,114 @@ function rankCell(key) {
   return `<b>#${v}</b>${tag}`;
 }
 
-// ---------- TÍNH TOÁN & HIỂN THỊ BANNER SLIDER PEAK (FIXED) ----------
+// ---------- TÍNH TOÁN & HIỂN THỊ BANNER SLIDER PEAK ----------
 function calculatePeaks() {
   const chartsToScan = ["spotify_vn", "apple_music_vn", "itunes_vn"];
   const chartNames = { spotify_vn: "Spotify VN", apple_music_vn: "Apple Music VN", itunes_vn: "iTunes VN" };
   
   const albumThumb = tracks.find(t => t.id === "thang")?.youtube_id 
-    ? `
+    ? `https://i.ytimg.com/vi/${tracks.find(t => t.id === "thang").youtube_id}/hqdefault.jpg` 
+    : "";
+
+  const targets = [{ id: ALBUM, name: "Album THĂNG", thumb: albumThumb }];
+  tracks.forEach(t => {
+    targets.push({ 
+      id: t.id, 
+      name: t.title, 
+      thumb: t.youtube_id ? `https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg` : "" 
+    });
+  });
+
+  let results = [];
+
+  targets.forEach(target => {
+    let bestRank = 9999;
+    let bestChart = "";
+    let bestDate = "";
+
+    const rankDatesList = Object.keys(sheet.ranks);
+    rankDatesList.forEach(date => {
+      const dayData = sheet.ranks[date];
+      chartsToScan.forEach(chartKey => {
+        const lookupKey = target.id === ALBUM ? chartKey : `${chartKey}:${target.id}`;
+        const rankVal = dayData[lookupKey];
+
+        if (typeof rankVal === "number" && rankVal < bestRank) {
+          bestRank = rankVal;
+          bestChart = chartNames[chartKey];
+          bestDate = date;
+        }
+      });
+    });
+
+    if (bestRank < 9999) {
+      results.push({ ...target, rank: bestRank, chart: bestChart, date: bestDate });
+    }
+  });
+
+  results.sort((a, b) => a.rank - b.rank);
+  return results.slice(0, 5);
+}
+
+function renderPeaksSlider() {
+  const peaks = calculatePeaks();
+  const container = document.getElementById("bannerContainer");
+  const dotsContainer = document.getElementById("bannerDots");
+  
+  if (!container || !dotsContainer) return;
+
+  if (!peaks.length) {
+    container.innerHTML = '<div class="empty">Chưa có dữ liệu tính Peak.</div>';
+    dotsContainer.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = peaks.map((p, index) => `
+    <div class="banner-slide ${index === 0 ? 'active' : ''}" data-index="${index}">
+      <div class="banner-content">
+        <div class="banner-title">"${p.name}" đạt đỉnh cao nhất ở hạng <span style="font-size:24px;">#${p.rank}</span> trên ${p.chart}.</div>
+        <div class="banner-sub">
+          <span>Ngày đạt mốc: <b>${p.date}</b></span>
+        </div>
+      </div>
+      <img class="banner-thumb" src="${p.thumb || 'https://via.placeholder.com/84'}" alt="" onerror="this.src='https://via.placeholder.com/84'">
+    </div>
+  `).join("");
+
+  dotsContainer.innerHTML = peaks.map((_, index) => `
+    <div class="banner-dot ${index === 0 ? 'active' : ''}" onclick="currentSlide = ${index}; updateSlides(); resetInterval();"></div>
+  `).join("");
+
+  if (!slideInterval) {
+    slideInterval = setInterval(() => {
+      currentSlide = (currentSlide + 1) % peaks.length;
+      updateSlides();
+    }, 4500);
+  }
+}
+
+function updateSlides() {
+  const slides = document.querySelectorAll(".banner-slide");
+  const dots = document.querySelectorAll(".banner-dot");
+  slides.forEach((slide, idx) => {
+    slide.classList.toggle("active", idx === currentSlide);
+  });
+  dots.forEach((dot, idx) => {
+    dot.classList.toggle("active", idx === currentSlide);
+  });
+}
+
+function resetInterval() {
+  clearInterval(slideInterval);
+  slideInterval = setInterval(() => {
+    const slides = document.querySelectorAll(".banner-slide");
+    if(slides.length > 0) {
+      currentSlide = (currentSlide + 1) % slides.length;
+      updateSlides();
+    }
+  }, 4500);
+}
+
+function renderRanks() {
+  if (!rankDates().length) {
+    document.getElementById("ranks").innerHTML = '<div class="empty">Chưa
