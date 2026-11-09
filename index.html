@@ -36,6 +36,7 @@
   button:disabled { opacity: .35; cursor: not-allowed; }
   select { border-radius: 8px; background: var(--card); }
   svg { width: 100%; height: auto; display: block; }
+  .hv { cursor: crosshair; }
   .empty { color: var(--muted); text-align: center; padding: 36px 8px; }
   .scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -47,6 +48,11 @@
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
   footer { color: var(--muted); font-size: 12px; margin-top: 24px; line-height: 1.6; }
+  #tip { position: absolute; display: none; pointer-events: none; z-index: 9; white-space: nowrap;
+    background: #06222f; border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px;
+    font-size: 13px; color: var(--text); }
+  #tip .tl { color: var(--muted); font-size: 12px; }
+  #tip .tv { font-weight: 700; color: var(--accent); font-size: 15px; }
 </style>
 </head>
 <body>
@@ -59,24 +65,22 @@
   <section class="cards" id="cards"></section>
 
   <section class="panel">
-    <h2>Thứ hạng · Album THĂNG (Việt Nam)</h2>
+    <h2>Bảng xếp hạng · Việt Nam</h2>
     <div class="scroll" id="ranks"></div>
   </section>
 
   <section class="panel">
     <div class="controls" id="metricBtns"></div>
-    <div class="controls">
-      <div id="modeBtns" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-      <span style="flex:1"></span>
-      <select id="trackSel"></select>
-    </div>
+    <div class="controls" id="modeBtns"></div>
+    <div class="controls"><select id="trackSel"></select></div>
     <div id="chart"></div>
   </section>
 
   <section class="panel">
     <div class="controls">
       <h2 style="margin:0;flex:1">Thứ hạng theo thời gian</h2>
-      <select id="rankSel"></select>
+      <select id="rankChartSel"></select>
+      <select id="rankTrackSel"></select>
     </div>
     <div id="rankChart"></div>
   </section>
@@ -88,10 +92,12 @@
 
   <footer>
     YouTube cập nhật mỗi giờ. Spotify, người nghe hàng tháng và thứ hạng nhập từ Google Sheet.
-    Chế độ "Theo giờ" chỉ có với YouTube. Thứ hạng càng nhỏ càng cao (#1 là tốt nhất).
+    Ô thứ hạng trống nghĩa là bài chưa lọt top. Thứ hạng càng nhỏ càng cao (#1 là tốt nhất).
     Spotify không có API công khai cho số stream, nên số này nhập tay và có thể thiếu.
+    Trang tự làm mới mỗi 5 phút.
   </footer>
 </div>
+<div id="tip"></div>
 
 <script>
 const METRICS = {
@@ -100,42 +106,53 @@ const METRICS = {
   ls: { name: "Người nghe hàng tháng", color: "#bfe9fb", track: false },
 };
 const MODES = { hour: "Theo giờ", day: "Theo ngày", total: "Tổng" };
-const RANKS = { spotify_vn: "Spotify VN", apple_music_vn: "Apple Music VN", itunes_vn: "iTunes VN" };
-
-const fmt = n => n == null ? "–" : n.toLocaleString("vi-VN");
-const fmtD = n => n == null ? "–" : (n > 0 ? "+" : "") + n.toLocaleString("vi-VN");
+const CHARTS = { spotify_vn: "Spotify VN", apple_music_vn: "Apple Music VN", itunes_vn: "iTunes VN" };
+const ALBUM = "album";
+const REFRESH_MS = 5 * 60 * 1000;
 
 let tracks = [], snaps = [], sheet = { stream: {}, ranks: {} };
-let metric = "yt", mode = "day", sel = "all", rankKey = "spotify_vn";
+let metric = "yt", mode = "hour", sel = "all", rChart = "spotify_vn", rTrack = ALBUM;
+let inited = false;
 
-async function getJSON(url, fallback) {
+const fmt = n => n == null ? "–" : Math.round(n).toLocaleString("vi-VN");
+const fmtD = n => n == null ? "–" : (n > 0 ? "+" : "") + Math.round(n).toLocaleString("vi-VN");
+const tip = document.getElementById("tip");
+
+// ---------- tải dữ liệu ----------
+async function getJSON(url) {
   try {
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await fetch(url + "?t=" + Date.now(), { cache: "no-store" });
     if (!r.ok) throw new Error(r.status);
     return await r.json();
-  } catch (e) { return fallback; }
+  } catch (e) { return null; }
 }
 
-async function load() {
-  const t = await getJSON("tracks.json", { tracks: [] });
-  tracks = t.tracks || [];
-  const h = await getJSON("data/history.json", []);
+async function fetchAll() {
+  const t = await getJSON("tracks.json");
+  tracks = (t && t.tracks) || [];
+  const h = await getJSON("data/history.json");
   snaps = (Array.isArray(h) ? h : []).filter(x => x.yt).sort((a, b) => a.ts < b.ts ? -1 : 1);
-  const s = await getJSON("data/sheet.json", {});
+  const s = (await getJSON("data/sheet.json")) || {};
   sheet = { stream: s.stream || {}, ranks: s.ranks || {}, updated: s.updated };
+}
 
+function initSelects() {
   const ts = document.getElementById("trackSel");
   ts.innerHTML = '<option value="all">Tất cả bài</option>' +
     tracks.map(x => `<option value="${x.id}">${x.title}</option>`).join("");
   ts.onchange = () => { sel = ts.value; render(); };
 
-  const rs = document.getElementById("rankSel");
-  rs.innerHTML = Object.entries(RANKS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
-  rs.onchange = () => { rankKey = rs.value; renderRankChart(); };
+  const rc = document.getElementById("rankChartSel");
+  rc.innerHTML = Object.entries(CHARTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  rc.onchange = () => { rChart = rc.value; render(); };
 
-  render();
+  const rt = document.getElementById("rankTrackSel");
+  rt.innerHTML = `<option value="${ALBUM}">Album THĂNG</option>` +
+    tracks.map(x => `<option value="${x.id}">${x.title}</option>`).join("");
+  rt.onchange = () => { rTrack = rt.value; render(); };
 }
 
+// ---------- nút bấm ----------
 function renderButtons() {
   document.getElementById("metricBtns").innerHTML = Object.entries(METRICS).map(([k, m]) =>
     `<button data-m="${k}" class="${k === metric ? "on" : ""}">${m.name}</button>`).join("");
@@ -150,7 +167,7 @@ function renderButtons() {
   document.getElementById("trackSel").disabled = !METRICS[metric].track;
 }
 
-// ---------- dữ liệu ----------
+// ---------- chuỗi số liệu ----------
 const idsFor = s => s === "all" ? tracks.map(t => t.id) : [s];
 function sumOf(obj, ids) {
   let s = 0, any = false;
@@ -169,19 +186,16 @@ function ytPts(s) {
     v: sumOf(h.yt, idsFor(s)),
   })).filter(p => p.v != null);
 }
-function ytDaily(s) {
-  return lastPerDate(ytPts(s)).map(p => ({ ...p, label: p.date }));
-}
+function ytDaily(s) { return lastPerDate(ytPts(s)).map(p => ({ ...p, label: p.date })); }
 function streamPts(s) {
-  return Object.keys(sheet.stream).sort().map(d => ({
-    date: d, label: d, v: sumOf(sheet.stream[d], idsFor(s)),
-  })).filter(p => p.v != null);
+  return Object.keys(sheet.stream).sort().map(d => ({ date: d, label: d, v: sumOf(sheet.stream[d], idsFor(s)) }))
+    .filter(p => p.v != null);
 }
 function listenerPts() {
-  return Object.keys(sheet.stream).sort().map(d => ({
-    date: d, label: d,
-    v: typeof sheet.stream[d].nguoi_nghe_thang === "number" ? sheet.stream[d].nguoi_nghe_thang : null,
-  })).filter(p => p.v != null);
+  return Object.keys(sheet.stream).sort().map(d => {
+    const v = sheet.stream[d].nguoi_nghe_thang;
+    return { date: d, label: d, v: typeof v === "number" ? v : null };
+  }).filter(p => p.v != null);
 }
 function basePts(m, s) {
   if (m === "yt") return mode === "hour" ? ytPts(s).slice(-168) : ytDaily(s);
@@ -191,7 +205,7 @@ function basePts(m, s) {
 function chartPts(m, s) {
   const b = basePts(m, s);
   if (mode === "total") return b;
-  return b.slice(1).map((p, i) => ({ label: p.label, date: p.date, v: p.v - b[i].v }));
+  return b.slice(1).map((p, i) => ({ label: p.label, v: p.v - b[i].v }));
 }
 function latestDelta(pts) {
   if (!pts.length) return [null, null];
@@ -199,31 +213,81 @@ function latestDelta(pts) {
   return [last.v, prev ? last.v - prev.v : null];
 }
 
+// ---------- trục số tròn ----------
+function niceStep(range) {
+  const raw = range / 4;
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const f = raw / p;
+  const m = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
+  return m * p;
+}
+function ticksFor(lo, hi) {
+  if (hi === lo) hi = lo + 1;
+  const st = niceStep(hi - lo);
+  const a = Math.floor(lo / st) * st, b = Math.ceil(hi / st) * st;
+  const out = [];
+  for (let v = a; v <= b + st / 2; v += st) out.push(+v.toFixed(6));
+  return out;
+}
+function axisLabel(v) {
+  if (Math.abs(v) >= 1e6) return (Math.round(v / 1e6 * 100) / 100).toString().replace(".", ",") + " triệu";
+  return Math.round(v).toLocaleString("vi-VN");
+}
+
+// ---------- tooltip ----------
+function showTip(t, px, py) {
+  tip.innerHTML = `<div class="tl">${t.dataset.l}</div><div class="tv">${t.dataset.v}</div>`;
+  tip.style.display = "block";
+  const w = tip.offsetWidth;
+  let x = px + 14;
+  if (x + w > document.documentElement.clientWidth - 8) x = px - w - 14;
+  tip.style.left = x + window.scrollX + "px";
+  tip.style.top = py - 10 + window.scrollY + "px";
+}
+function attachTip(el) {
+  el.onmousemove = e => {
+    const t = e.target.closest && e.target.closest(".hv");
+    if (!t) { tip.style.display = "none"; return; }
+    showTip(t, e.pageX - window.scrollX, e.pageY - window.scrollY);
+  };
+  el.onmouseleave = () => { tip.style.display = "none"; };
+  el.ontouchstart = e => {
+    const t = e.target.closest && e.target.closest(".hv");
+    if (!t) { tip.style.display = "none"; return; }
+    const touch = e.touches[0];
+    showTip(t, touch.clientX, touch.clientY);
+  };
+}
+
 // ---------- vẽ biểu đồ ----------
-function drawChart(el, pts, color, isGain, opts = {}) {
+function drawChart(el, pts, color, o = {}) {
   pts = pts.filter(p => p.v != null);
   if (!pts.length) {
-    el.innerHTML = '<div class="empty">Chưa đủ dữ liệu cho biểu đồ này. Cần ít nhất 2 mốc để tính mức tăng.</div>';
+    el.innerHTML = '<div class="empty">Chưa đủ dữ liệu cho biểu đồ này.</div>';
     return;
   }
-  const W = 800, H = 280, L = 64, R = 12, T = 12, B = 28;
-  const inv = !!opts.invert;
-  const bar = isGain && !inv;
+  const W = 800, H = 300, L = 72, R = 14, T = 14, B = 30;
+  const bar = !!o.bar, inv = !!o.invert;
   const vals = pts.map(p => p.v);
-  const min = bar ? Math.min(0, ...vals) : Math.min(...vals);
-  const max = bar ? Math.max(0, ...vals) : Math.max(...vals);
-  const span = (max - min) || 1;
+  const lo = bar ? Math.min(0, ...vals) : Math.min(...vals);
+  const hi = bar ? Math.max(0, ...vals) : Math.max(...vals);
+  const tk = ticksFor(lo, hi);
+  const aMin = tk[0], aMax = tk[tk.length - 1], span = (aMax - aMin) || 1;
   const yOf = v => inv
-    ? T + (H - T - B) * ((v - min) / span)
-    : T + (H - T - B) * (1 - (v - min) / span);
-  const x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1));
+    ? T + (H - T - B) * ((v - aMin) / span)
+    : T + (H - T - B) * (1 - (v - aMin) / span);
+  const n = pts.length;
+  const colW = n === 1 ? (W - L - R) : (W - L - R) / (n - 1);
+  const x = i => n === 1 ? L + (W - L - R) / 2 : L + i * colW;
+
   let g = "";
-  for (let k = 0; k <= 4; k++) {
-    const v = min + span * k / 4, yy = yOf(v);
+  tk.forEach(v => {
+    if (inv && v < 1) return;
+    const yy = yOf(v);
     g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#1f2d38"/>
-          <text x="${L - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#7fa3b5">${inv ? "#" : ""}${Math.round(v).toLocaleString("vi-VN")}</text>`;
-  }
-  const step = Math.max(1, Math.ceil(pts.length / 7));
+          <text x="${L - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#7fa3b5">${inv ? "#" + v : axisLabel(v)}</text>`;
+  });
+  const step = Math.max(1, Math.ceil(n / 7));
   pts.forEach((p, i) => {
     if (i % step === 0) {
       const lab = p.label.length === 10 ? p.label.slice(5) : p.label;
@@ -231,71 +295,83 @@ function drawChart(el, pts, color, isGain, opts = {}) {
     }
   });
   if (bar) {
-    const bw = Math.max(3, Math.min(36, (W - L - R) / pts.length * .7));
-    const y0 = yOf(0);
+    const bw = Math.max(3, Math.min(36, colW * 0.7)), y0 = yOf(0);
     pts.forEach((p, i) => {
       const y1 = yOf(p.v);
-      g += `<rect x="${x(i) - bw / 2}" y="${Math.min(y0, y1)}" width="${bw}" height="${Math.max(1, Math.abs(y0 - y1))}" rx="3" fill="${color}"><title>${p.label}: ${fmtD(p.v)}</title></rect>`;
+      g += `<rect x="${x(i) - bw / 2}" y="${Math.min(y0, y1)}" width="${bw}" height="${Math.max(1, Math.abs(y0 - y1))}" rx="3" fill="${color}"/>`;
     });
   } else {
     g += `<polyline fill="none" stroke="${color}" stroke-width="2.5" points="${pts.map((p, i) => x(i) + "," + yOf(p.v)).join(" ")}"/>`;
-    pts.forEach((p, i) => g += `<circle cx="${x(i)}" cy="${yOf(p.v)}" r="3.5" fill="${color}"><title>${p.label}: ${fmt(p.v)}</title></circle>`);
+    pts.forEach((p, i) => { g += `<circle cx="${x(i)}" cy="${yOf(p.v)}" r="3.5" fill="${color}"/>`; });
   }
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+  pts.forEach((p, i) => {
+    const cw = n === 1 ? (W - L - R) : colW;
+    const shown = inv ? "#" + p.v : (bar ? fmtD(p.v) : fmt(p.v));
+    g += `<rect class="hv" x="${x(i) - cw / 2}" y="${T}" width="${cw}" height="${H - T - B}" fill="transparent" data-l="${p.label}" data-v="${shown}"/>`;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  attachTip(el);
 }
 
-// ---------- hiển thị ----------
+// ---------- thứ hạng ----------
+function rankDates() { return Object.keys(sheet.ranks).sort(); }
+function rankSeries(key) {
+  return rankDates().filter(d => typeof sheet.ranks[d][key] === "number")
+    .map(d => ({ date: d, label: d, v: sheet.ranks[d][key] }));
+}
+function rankCell(key) {
+  const ds = rankDates();
+  if (!ds.length) return '<span class="na">–</span>';
+  const lastD = ds[ds.length - 1], v = sheet.ranks[lastD][key];
+  if (typeof v !== "number") return '<span class="na">chưa lọt top</span>';
+  const s = rankSeries(key), prev = s.length > 1 ? s[s.length - 2].v : null;
+  const ch = prev == null ? null : prev - v;
+  const tag = ch == null ? "" : ch === 0 ? ' <span class="na">=</span>'
+    : ch > 0 ? ` <span class="up">▲${ch}</span>` : ` <span class="down">▼${-ch}</span>`;
+  return `<b>#${v}</b>${tag}`;
+}
+function renderRanks() {
+  if (!rankDates().length) {
+    document.getElementById("ranks").innerHTML = '<div class="empty">Chưa có dữ liệu thứ hạng.</div>';
+    return;
+  }
+  const head = `<tr><th>Bài hát</th>${Object.values(CHARTS).map(v => `<th>${v}</th>`).join("")}</tr>`;
+  const rowFor = (name, id) => `<tr><td>${name}</td>${Object.keys(CHARTS).map(k =>
+    `<td>${rankCell(id === ALBUM ? k : k + ":" + id)}</td>`).join("")}</tr>`;
+  const body = rowFor("<b>Album THĂNG</b>", ALBUM) + tracks.map(t => rowFor(t.title, t.id)).join("");
+  document.getElementById("ranks").innerHTML = `<table>${head}${body}</table>`;
+}
+function renderRankChart() {
+  const key = rTrack === ALBUM ? rChart : rChart + ":" + rTrack;
+  drawChart(document.getElementById("rankChart"), rankSeries(key), "#89CFF0", { invert: true });
+}
+
+// ---------- thẻ, bảng, biểu đồ chính ----------
 function renderCards() {
+  const [yc, yd] = latestDelta(ytPts("all"));
+  const [sc, sd] = latestDelta(streamPts("all"));
+  const [lc, ld] = latestDelta(listenerPts());
   const cards = [
-    ["Lượt xem YouTube", ytDaily("all")],
-    ["Spotify (stream)", streamPts("all")],
-    ["Người nghe hàng tháng", listenerPts()],
+    ["Lượt xem YouTube", yc, yd, "so với 1 giờ trước"],
+    ["Spotify (stream)", sc, sd, "so với hôm qua"],
+    ["Người nghe hàng tháng", lc, ld, "so với hôm qua"],
   ];
-  document.getElementById("cards").innerHTML = cards.map(([name, pts]) => {
-    const [cur, d] = latestDelta(pts);
+  document.getElementById("cards").innerHTML = cards.map(([name, cur, d, note]) => {
     const cls = d > 0 ? "up" : d < 0 ? "down" : "";
     return `<div class="card">
       <div class="label"><span class="dot"></span>${name}</div>
       <div class="big">${fmt(cur)}</div>
-      <div class="delta ${cls}">${d == null ? "– so với hôm qua" : fmtD(d) + " so với hôm qua"}</div>
+      <div class="delta ${cls}">${d == null ? "– " + note : fmtD(d) + " " + note}</div>
     </div>`;
   }).join("");
 }
-
-function renderRanks() {
-  const dates = Object.keys(sheet.ranks).sort();
-  if (!dates.length) {
-    document.getElementById("ranks").innerHTML = '<div class="empty">Chưa có dữ liệu thứ hạng.</div>';
-    return;
-  }
-  const rows = Object.entries(RANKS).map(([k, name]) => {
-    const pts = dates.filter(d => typeof sheet.ranks[d][k] === "number").map(d => ({ date: d, v: sheet.ranks[d][k] }));
-    if (!pts.length) return `<tr><td>${name}</td><td class="na">–</td><td class="na">–</td><td class="na">–</td></tr>`;
-    const last = pts[pts.length - 1], prev = pts[pts.length - 2];
-    const ch = prev ? prev.v - last.v : null; // dương = lên hạng
-    const txt = ch == null ? "–" : ch === 0 ? "không đổi" : ch > 0 ? `▲ ${ch} bậc` : `▼ ${-ch} bậc`;
-    const cls = ch > 0 ? "up" : ch < 0 ? "down" : "na";
-    return `<tr><td>${name}</td><td>#${last.v}</td><td class="${cls}">${txt}</td><td class="na">${last.date.slice(5)}</td></tr>`;
-  }).join("");
-  document.getElementById("ranks").innerHTML =
-    `<table><tr><th>Bảng xếp hạng</th><th>Hiện tại</th><th>So với lần trước</th><th>Ngày</th></tr>${rows}</table>`;
+function renderChartMain() {
+  drawChart(document.getElementById("chart"), chartPts(metric, sel), METRICS[metric].color, { bar: mode !== "total" });
 }
-
-function renderRankChart() {
-  const pts = Object.keys(sheet.ranks).sort()
-    .filter(d => typeof sheet.ranks[d][rankKey] === "number")
-    .map(d => ({ date: d, label: d, v: sheet.ranks[d][rankKey] }));
-  drawChart(document.getElementById("rankChart"), pts, "#89CFF0", false, { invert: true });
-}
-
-function renderChart() {
-  drawChart(document.getElementById("chart"), chartPts(metric, sel), METRICS[metric].color, mode !== "total");
-}
-
 function renderTable() {
-  const head = `<tr><th>Bài hát</th><th>YouTube</th><th>+1 ngày</th><th>Spotify</th><th>+1 ngày</th></tr>`;
+  const head = `<tr><th>Bài hát</th><th>YouTube</th><th>+1 giờ</th><th>Spotify</th><th>+1 ngày</th></tr>`;
   const rows = tracks.map(t => {
-    const [yc, yd] = latestDelta(ytDaily(t.id));
+    const [yc, yd] = latestDelta(ytPts(t.id));
     const [sc, sd] = latestDelta(streamPts(t.id));
     const thumb = t.youtube_id
       ? `<img src="https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg" alt="" width="64" height="36" loading="lazy" style="object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:10px">`
@@ -316,19 +392,26 @@ function renderTable() {
 }
 
 function render() {
-  const last = snaps[snaps.length - 1];
-  const parts = [last ? "YouTube: " + last.ts.replace("T", " ").slice(0, 16) : "YouTube: chưa có"];
-  if (sheet.updated) parts.push("Sheet: " + sheet.updated.replace("T", " ").slice(0, 16));
-  document.getElementById("updated").textContent = "Cập nhật · " + parts.join(" · ");
   renderButtons();
+  const last = snaps[snaps.length - 1];
+  const parts = ["YouTube: " + (last ? last.ts.replace("T", " ").slice(0, 16) : "chưa có")];
+  if (sheet.updated) parts.push("Sheet: " + sheet.updated.replace("T", " ").slice(0, 16));
+  parts.push("Trang làm mới lúc " + new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }));
+  document.getElementById("updated").textContent = parts.join(" · ");
   renderCards();
   renderRanks();
-  renderChart();
+  renderChartMain();
   renderRankChart();
   renderTable();
 }
 
-load();
+async function refresh() {
+  await fetchAll();
+  if (!inited) { initSelects(); inited = true; }
+  render();
+}
+refresh();
+setInterval(refresh, REFRESH_MS);
 </script>
 </body>
 </html>
