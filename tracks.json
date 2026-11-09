@@ -1,0 +1,85 @@
+{
+  "artist": "UPRIZE",
+  "tracks": [
+    {
+      "id": "intro-127",
+      "title": "Intro *127#",
+      "album": "THĂNG",
+      "youtube_id": "",
+      "spotify_url": "https://open.spotify.com/track/1Q1dM4E0j88a80qRDmPKds",
+      "apple_url": ""
+    },
+    {
+      "id": "umbala",
+      "title": "UMBALA",
+      "album": "THĂNG",
+      "youtube_id": "",
+      "spotify_url": "https://open.spotify.com/track/4NPgD8MeV0uSDG00lr6j5f",
+      "apple_url": ""
+    },
+    {
+      "id": "chinh-la-cam-giac-nay",
+      "title": "chính là cảm giác này",
+      "album": "THĂNG",
+      "youtube_id": "n4mISrfo-Nk",
+      "spotify_url": "https://open.spotify.com/track/4O7TlurND14setcvn4mZjo",
+      "apple_url": ""
+    },
+    {
+      "id": "crazy-stupid-love",
+      "title": "crazy, stupid, love",
+      "album": "THĂNG",
+      "youtube_id": "4Bn_5AOmhuo",
+      "spotify_url": "https://open.spotify.com/track/0u6HyoHilieSQPsZfxTZAw",
+      "apple_url": ""
+    },
+    {
+      "id": "first-dance",
+      "title": "First Dance (mải mê)",
+      "album": "THĂNG",
+      "youtube_id": "GAK371lhPlk",
+      "spotify_url": "https://open.spotify.com/track/0TdY6uqmdRfnR7LgmxQHnG",
+      "apple_url": ""
+    },
+    {
+      "id": "exposure",
+      "title": "EXposure",
+      "album": "THĂNG",
+      "youtube_id": "",
+      "spotify_url": "https://open.spotify.com/track/74WY1fAamQKUvTk9uJlQPz",
+      "apple_url": ""
+    },
+    {
+      "id": "ngay-va-luon",
+      "title": "Ngay Và Luôn",
+      "album": "THĂNG",
+      "youtube_id": "GjMhp3KKruM",
+      "spotify_url": "https://open.spotify.com/track/4VK5K1w30C8ydo8DALRaGJ",
+      "apple_url": ""
+    },
+    {
+      "id": "thang",
+      "title": "THĂNG (Title Track)",
+      "album": "THĂNG",
+      "youtube_id": "SS9GzAxVoow",
+      "spotify_url": "https://open.spotify.com/track/736b8OjAKyAWNTCPfE5ljG",
+      "apple_url": ""
+    },
+    {
+      "id": "valor-rises",
+      "title": "VALOR RISES (APL 2026 Theme Song)",
+      "album": "Single",
+      "youtube_id": "",
+      "spotify_url": "https://open.spotify.com/track/6upiuTNWwPGQ303dlelWJr",
+      "apple_url": ""
+    },
+    {
+      "id": "thang-rock",
+      "title": "THĂNG (Rock Ver.)",
+      "album": "Single",
+      "youtube_id": "",
+      "spotify_url": "https://open.spotify.com/track/2wMj6xXQOLqPyPfOU0SmiC",
+      "apple_url": ""
+    }
+  ]
+}
