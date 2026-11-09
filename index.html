@@ -49,14 +49,14 @@
   .links a:hover { text-decoration: underline; }
 
   /* Giao diện Slider Banner Peak phong cách Spotify */
-  .banner-slider { position: relative; background: linear-gradient(135deg, #182836 0%, #0d1721 100%); border: 1px solid var(--line); border-radius: 16px; padding: 24px; min-height: 160px; display: flex; align-items: center; overflow: hidden; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .banner-slider { position: relative; background: linear-gradient(135deg, #182836 0%, #0d1721 100%); border: 1px solid var(--line); border-radius: 16px; padding: 24px; min-height: 150px; display: flex; align-items: center; overflow: hidden; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
   .banner-slide { display: none; width: 100%; align-items: center; justify-content: space-between; gap: 20px; animation: fadeIn 0.6s ease-in-out; }
   .banner-slide.active { display: flex; }
   .banner-content { flex: 1; }
-  .banner-title { font-size: 20px; font-weight: 700; line-height: 1.4; margin-bottom: 8px; color: var(--text); }
+  .banner-title { font-size: 19px; font-weight: 700; line-height: 1.4; margin-bottom: 8px; color: var(--text); }
   .banner-title span { color: var(--accent); }
   .banner-sub { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .banner-thumb { width: 90px; height: 90px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.4); flex-shrink: 0; }
+  .banner-thumb { width: 84px; height: 84px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.4); flex-shrink: 0; background: var(--line); }
   .banner-dots { position: absolute; bottom: 10px; right: 20px; display: flex; gap: 6px; }
   .banner-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); cursor: pointer; transition: background 0.3s; }
   .banner-dot.active { background: var(--accent); width: 18px; border-radius: 4px; }
@@ -354,111 +354,10 @@ function rankCell(key) {
   return `<b>#${v}</b>${tag}`;
 }
 
-// ---------- TÍNH TOÁN & HIỂN THỊ BANNER SLIDER PEAK ----------
+// ---------- TÍNH TOÁN & HIỂN THỊ BANNER SLIDER PEAK (FIXED) ----------
 function calculatePeaks() {
   const chartsToScan = ["spotify_vn", "apple_music_vn", "itunes_vn"];
   const chartNames = { spotify_vn: "Spotify VN", apple_music_vn: "Apple Music VN", itunes_vn: "iTunes VN" };
   
-  // Link ảnh bìa Spotify của Album THĂNG: https://open.spotify.com/album/70qSKwiTNwEi3a8eCw7LCU
-  // Ta có thể dùng thumbnail của bài "thang" (Title track) hoặc gắn link ảnh trực tiếp đại diện cho album
   const albumThumb = tracks.find(t => t.id === "thang")?.youtube_id 
-    ? `https://i.ytimg.com/vi/${tracks.find(t => t.id === "thang").youtube_id}/hqdefault.jpg` : "";  const targets = [{ id: ALBUM, name: "Album THĂNG", thumb: albumThumb }]; tracks.forEach(t => { targets.push({ id: t.id, name: t.title, thumb: t.youtube_id ? `https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg` : "" 
-    });
-  });
-
-  let results = [];
-
-  targets.forEach(target => {
-    let bestRank = 9999;
-    let bestChart = "";
-    let bestDate = "";
-
-    const rankDatesList = Object.keys(sheet.ranks);
-    rankDatesList.forEach(date => {
-      const dayData = sheet.ranks[date];
-      chartsToScan.forEach(chartKey => {
-        const lookupKey = target.id === ALBUM ? chartKey : `${chartKey}:${target.id}`;
-        const rankVal = dayData[lookupKey];
-
-        if (typeof rankVal === "number" && rankVal < bestRank) {
-          bestRank = rankVal;
-          bestChart = chartNames[chartKey];
-          bestDate = date;
-        }
-      });
-    });
-
-    if (bestRank < 9999) {
-      results.push({ ...target, rank: bestRank, chart: bestChart, date: bestDate });
-    }
-  });
-
-  results.sort((a, b) => a.rank - b.rank);
-  return results.slice(0, 5); // Lấy top 5 thành tích cao nhất để chạy slide
-}
-
-function renderPeaksSlider() {
-  const peaks = calculatePeaks();
-  const container = document.getElementById("bannerContainer");
-  const dotsContainer = document.getElementById("bannerDots");
-  
-  if (!peaks.length) {
-    container.innerHTML = '<div class="empty">Chưa có dữ liệu tính Peak.</div>';
-    dotsContainer.innerHTML = '';
-    return;
-  }
-
-  container.innerHTML = peaks.map((p, index) => `
-    <div class="banner-slide ${index === 0 ? 'active' : ''}" data-index="${index}">
-      <div class="banner-content">
-        <div class="banner-title">"${p.name}" đạt đỉnh cao nhất ở hạng <span style="font-size:24px;">#${p.rank}</span> trên ${p.chart}.</div>
-        <div class="banner-sub">
-          <span>Ngày đạt mốc: <b>${p.date}</b></span>
-        </div>
-      </div>
-      <img class="banner-thumb" src="${p.thumb || 'https://via.placeholder.com/90'}" alt="" onerror="this.src='https://via.placeholder.com/90'">
-    </div>
-  `).join("");
-
-  dotsContainer.innerHTML = peaks.map((_, index) => `
-    <div class="banner-dot ${index === 0 ? 'active' : ''}" onclick="currentSlide = ${index}; updateSlides(); resetInterval();"></div>
-  `).join("");
-
-  // Kích hoạt cơ chế tự động chuyển slide nếu chưa có
-  if (!slideInterval) {
-    slideInterval = setInterval(() => {
-      currentSlide = (currentSlide + 1) % peaks.length;
-      updateSlides();
-    }, 4500); // Tự động đổi slide sau mỗi 4.5 giây
-  }
-}
-
-function updateSlides() {
-  const slides = document.querySelectorAll(".banner-slide");
-  const dots = document.querySelectorAll(".banner-dot");
-  slides.forEach((slide, idx) => {
-    slide.classList.toggle("active", idx === currentSlide);
-  });
-  dots.forEach((dot, idx) => {
-    dot.classList.toggle("active", idx === currentSlide);
-  });
-}
-
-function resetInterval() {
-  clearInterval(slideInterval);
-  slideInterval = setInterval(() => {
-    const slides = document.querySelectorAll(".banner-slide");
-    if(slides.length > 0) {
-      currentSlide = (currentSlide + 1) % slides.length;
-      updateSlides();
-    }
-  }, 4500);
-}
-
-function renderRanks() {
-  if (!rankDates().length) {
-    document.getElementById("ranks").innerHTML = '<div class="empty">Chưa có dữ liệu thứ hạng.</div>';
-    return;
-  }
-  const head = `<tr><th>Bài hát</th>${Object.values(CHARTS).map(v => `<th>${v}</th>`).join("")}</tr>`;
-  const rowFor = (name, id) => `<tr><td>${name}</td>${Object.keys(CHARTS).map
+    ? `
