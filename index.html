@@ -42,6 +42,9 @@
   .scroll { overflow-x: auto; }
   tr:last-child td { border-bottom: 0; }
   .na { color: var(--muted); }
+  .links { font-size: 12px; color: var(--muted); margin-top: 4px; margin-left: 74px; }
+  .links a { color: var(--accent); text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
   footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
 </style>
 </head>
@@ -197,7 +200,14 @@ function renderTable() {
       const v = latest(m, t.id), d = latestDelta(m, t.id, 1);
       return `<td class="${v == null ? "na" : ""}">${fmt(v)}</td><td class="${d > 0 ? "up" : "na"}">${fmtDelta(d)}</td>`;
     }).join("");
-    return `<tr><td>${t.title}</td>${cells}</tr>`;
+    const thumb = t.youtube_id
+      ? `<img src="https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg" alt="" width="64" height="36" loading="lazy" style="object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:10px">`
+      : `<span style="display:inline-block;width:64px;height:36px;border-radius:6px;background:var(--line);vertical-align:middle;margin-right:10px"></span>`;
+    const links = [
+      t.youtube_id ? `<a href="https://www.youtube.com/watch?v=${t.youtube_id}" target="_blank" rel="noopener">YouTube</a>` : "",
+      t.spotify_url ? `<a href="${t.spotify_url}" target="_blank" rel="noopener">Spotify</a>` : ""
+    ].filter(Boolean).join(" · ");
+    return `<tr><td>${thumb}<span>${t.title}</span><div class="links">${links}</div></td>${cells}</tr>`;
   }).join("");
   document.getElementById("table").innerHTML = head + rows;
 }
