@@ -1,0 +1,7 @@
+{
+  "_note": "Điền tổng số hiện tại (lấy từ Spotify / Apple Music / nguồn bạn tin cậy). Script sẽ ghi các số này vào snapshot của ngày hôm nay. Để null nếu chưa có.",
+  "thang": {
+    "spotify_streams": null,
+    "apple_plays": null
+  }
+}
