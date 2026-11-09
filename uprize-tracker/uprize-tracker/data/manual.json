@@ -1,7 +1,13 @@
 {
   "_note": "Điền tổng số hiện tại (lấy từ Spotify / Apple Music / nguồn bạn tin cậy). Script sẽ ghi các số này vào snapshot của ngày hôm nay. Để null nếu chưa có.",
-  "thang": {
-    "spotify_streams": null,
-    "apple_plays": null
-  }
+  "intro-127": { "spotify_streams": null, "apple_plays": null },
+  "umbala": { "spotify_streams": null, "apple_plays": null },
+  "chinh-la-cam-giac-nay": { "spotify_streams": null, "apple_plays": null },
+  "crazy-stupid-love": { "spotify_streams": null, "apple_plays": null },
+  "first-dance": { "spotify_streams": null, "apple_plays": null },
+  "exposure": { "spotify_streams": null, "apple_plays": null },
+  "ngay-va-luon": { "spotify_streams": null, "apple_plays": null },
+  "thang": { "spotify_streams": null, "apple_plays": null },
+  "valor-rises": { "spotify_streams": null, "apple_plays": null },
+  "thang-rock": { "spotify_streams": null, "apple_plays": null }
 }
