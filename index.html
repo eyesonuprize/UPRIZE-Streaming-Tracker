@@ -47,15 +47,24 @@
   .links { font-size: 12px; color: var(--muted); margin-top: 4px; margin-left: 74px; }
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
-  
-  /* Phần thiết kế riêng cho Peak Showcase Cards */
-  .peak-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 20px; }
-  .peak-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; align-items: center; gap: 14px; }
-  .peak-thumb { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; background: var(--line); flex-shrink: 0; }
-  .peak-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-  .peak-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .peak-stat { font-size: 13px; color: var(--muted); }
-  .peak-badge { font-weight: 700; color: var(--accent); }
+
+  /* Giao diện Slider Banner Peak phong cách Spotify */
+  .banner-slider { position: relative; background: linear-gradient(135deg, #182836 0%, #0d1721 100%); border: 1px solid var(--line); border-radius: 16px; padding: 24px; min-height: 160px; display: flex; align-items: center; overflow: hidden; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .banner-slide { display: none; width: 100%; align-items: center; justify-content: space-between; gap: 20px; animation: fadeIn 0.6s ease-in-out; }
+  .banner-slide.active { display: flex; }
+  .banner-content { flex: 1; }
+  .banner-title { font-size: 20px; font-weight: 700; line-height: 1.4; margin-bottom: 8px; color: var(--text); }
+  .banner-title span { color: var(--accent); }
+  .banner-sub { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .banner-thumb { width: 90px; height: 90px; border-radius: 12px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.4); flex-shrink: 0; }
+  .banner-dots { position: absolute; bottom: 10px; right: 20px; display: flex; gap: 6px; }
+  .banner-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); cursor: pointer; transition: background 0.3s; }
+  .banner-dot.active { background: var(--accent); width: 18px; border-radius: 4px; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
   footer { color: var(--muted); font-size: 12px; margin-top: 24px; line-height: 1.6; }
   #tip { position: absolute; display: none; pointer-events: none; z-index: 9; white-space: nowrap;
@@ -74,10 +83,13 @@
 
   <section class="cards" id="cards"></section>
 
-  <!-- Khung hiển thị Peak nổi bật -->
-  <section class="panel">
-    <h2>Thành tích đỉnh cao (Peak Charts)</h2>
-    <div class="peak-container" id="peakCards"></div>
+  <!-- Khung Banner Slider Tự Động Chạy Peak -->
+  <section class="panel" style="padding:0; background:transparent; border:none;">
+    <h2 style="margin-bottom: 8px;">Thành tích đỉnh cao (Peak Charts)</h2>
+    <div class="banner-slider" id="bannerSlider">
+      <div id="bannerContainer" style="width:100%;"></div>
+      <div class="banner-dots" id="bannerDots"></div>
+    </div>
   </section>
 
   <section class="panel">
@@ -129,12 +141,13 @@ const REFRESH_MS = 5 * 60 * 1000;
 let tracks = [], snaps = [], sheet = { stream: {}, ranks: {} };
 let metric = "yt", mode = "hour", sel = "all", rChart = "spotify_vn", rTrack = ALBUM;
 let inited = false;
+let currentSlide = 0;
+let slideInterval = null;
 
 const fmt = n => n == null ? "–" : Math.round(n).toLocaleString("vi-VN");
 const fmtD = n => n == null ? "–" : (n > 0 ? "+" : "") + Math.round(n).toLocaleString("vi-VN");
 const tip = document.getElementById("tip");
 
-// ---------- tải dữ liệu ----------
 async function getJSON(url) {
   try {
     const r = await fetch(url + "?t=" + Date.now(), { cache: "no-store" });
@@ -168,7 +181,6 @@ function initSelects() {
   rt.onchange = () => { rTrack = rt.value; render(); };
 }
 
-// ---------- nút bấm ----------
 function renderButtons() {
   document.getElementById("metricBtns").innerHTML = Object.entries(METRICS).map(([k, m]) =>
     `<button data-m="${k}" class="${k === metric ? "on" : ""}">${m.name}</button>`).join("");
@@ -183,7 +195,6 @@ function renderButtons() {
   document.getElementById("trackSel").disabled = !METRICS[metric].track;
 }
 
-// ---------- chuỗi số liệu ----------
 const idsFor = s => s === "all" ? tracks.map(t => t.id) : [s];
 function sumOf(obj, ids) {
   let s = 0, any = false;
@@ -229,7 +240,6 @@ function latestDelta(pts) {
   return [last.v, prev ? last.v - prev.v : null];
 }
 
-// ---------- trục số tròn ----------
 function niceStep(range) {
   const raw = range / 4;
   const p = Math.pow(10, Math.floor(Math.log10(raw)));
@@ -250,7 +260,6 @@ function axisLabel(v) {
   return Math.round(v).toLocaleString("vi-VN");
 }
 
-// ---------- tooltip ----------
 function showTip(t, px, py) {
   tip.innerHTML = `<div class="tl">${t.dataset.l}</div><div class="tv">${t.dataset.v}</div>`;
   tip.style.display = "block";
@@ -275,7 +284,6 @@ function attachTip(el) {
   };
 }
 
-// ---------- vẽ biểu đồ ----------
 function drawChart(el, pts, color, o = {}) {
   pts = pts.filter(p => p.v != null);
   if (!pts.length) {
@@ -329,7 +337,6 @@ function drawChart(el, pts, color, o = {}) {
   attachTip(el);
 }
 
-// ---------- thứ hạng ----------
 function rankDates() { return Object.keys(sheet.ranks).sort(); }
 function rankSeries(key) {
   return rankDates().filter(d => typeof sheet.ranks[d][key] === "number")
@@ -347,17 +354,15 @@ function rankCell(key) {
   return `<b>#${v}</b>${tag}`;
 }
 
-// ---------- TÍNH TOÁN & HIỂN THỊ PEAK (THÀNH TÍCH ĐỈNH CAO) ----------
+// ---------- TÍNH TOÁN & HIỂN THỊ BANNER SLIDER PEAK ----------
 function calculatePeaks() {
   const chartsToScan = ["spotify_vn", "apple_music_vn", "itunes_vn"];
   const chartNames = { spotify_vn: "Spotify VN", apple_music_vn: "Apple Music VN", itunes_vn: "iTunes VN" };
   
-  const targets = [{ id: ALBUM, name: "Album THĂNG", thumb: "" }];
-  tracks.forEach(t => {
-    targets.push({ 
-      id: t.id, 
-      name: t.title, 
-      thumb: t.youtube_id ? `https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg` : "" 
+  // Link ảnh bìa Spotify của Album THĂNG: https://open.spotify.com/album/70qSKwiTNwEi3a8eCw7LCU
+  // Ta có thể dùng thumbnail của bài "thang" (Title track) hoặc gắn link ảnh trực tiếp đại diện cho album
+  const albumThumb = tracks.find(t => t.id === "thang")?.youtube_id 
+    ? `https://i.ytimg.com/vi/${tracks.find(t => t.id === "thang").youtube_id}/hqdefault.jpg` : "";  const targets = [{ id: ALBUM, name: "Album THĂNG", thumb: albumThumb }]; tracks.forEach(t => { targets.push({ id: t.id, name: t.title, thumb: t.youtube_id ? `https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg` : "" 
     });
   });
 
@@ -389,27 +394,65 @@ function calculatePeaks() {
   });
 
   results.sort((a, b) => a.rank - b.rank);
-  return results.slice(0, 4); // Lấy top 4 bài có thành tích cao nhất
+  return results.slice(0, 5); // Lấy top 5 thành tích cao nhất để chạy slide
 }
 
-function renderPeaks() {
+function renderPeaksSlider() {
   const peaks = calculatePeaks();
-  const container = document.getElementById("peakCards");
+  const container = document.getElementById("bannerContainer");
+  const dotsContainer = document.getElementById("bannerDots");
+  
   if (!peaks.length) {
     container.innerHTML = '<div class="empty">Chưa có dữ liệu tính Peak.</div>';
+    dotsContainer.innerHTML = '';
     return;
   }
 
-  container.innerHTML = peaks.map(p => `
-    <div class="peak-card">
-      <img class="peak-thumb" src="${p.thumb || 'https://via.placeholder.com/64'}" alt="" onerror="this.src='https://via.placeholder.com/64'">
-      <div class="peak-info">
-        <div class="peak-title">${p.name}</div>
-        <div class="peak-stat">Cao nhất: <span class="peak-badge">#${p.rank}</span> trên ${p.chart}</div>
-        <div class="peak-stat" style="font-size: 11px;">Ngày đạt: ${p.date}</div>
+  container.innerHTML = peaks.map((p, index) => `
+    <div class="banner-slide ${index === 0 ? 'active' : ''}" data-index="${index}">
+      <div class="banner-content">
+        <div class="banner-title">"${p.name}" đạt đỉnh cao nhất ở hạng <span style="font-size:24px;">#${p.rank}</span> trên ${p.chart}.</div>
+        <div class="banner-sub">
+          <span>Ngày đạt mốc: <b>${p.date}</b></span>
+        </div>
       </div>
+      <img class="banner-thumb" src="${p.thumb || 'https://via.placeholder.com/90'}" alt="" onerror="this.src='https://via.placeholder.com/90'">
     </div>
   `).join("");
+
+  dotsContainer.innerHTML = peaks.map((_, index) => `
+    <div class="banner-dot ${index === 0 ? 'active' : ''}" onclick="currentSlide = ${index}; updateSlides(); resetInterval();"></div>
+  `).join("");
+
+  // Kích hoạt cơ chế tự động chuyển slide nếu chưa có
+  if (!slideInterval) {
+    slideInterval = setInterval(() => {
+      currentSlide = (currentSlide + 1) % peaks.length;
+      updateSlides();
+    }, 4500); // Tự động đổi slide sau mỗi 4.5 giây
+  }
+}
+
+function updateSlides() {
+  const slides = document.querySelectorAll(".banner-slide");
+  const dots = document.querySelectorAll(".banner-dot");
+  slides.forEach((slide, idx) => {
+    slide.classList.toggle("active", idx === currentSlide);
+  });
+  dots.forEach((dot, idx) => {
+    dot.classList.toggle("active", idx === currentSlide);
+  });
+}
+
+function resetInterval() {
+  clearInterval(slideInterval);
+  slideInterval = setInterval(() => {
+    const slides = document.querySelectorAll(".banner-slide");
+    if(slides.length > 0) {
+      currentSlide = (currentSlide + 1) % slides.length;
+      updateSlides();
+    }
+  }, 4500);
 }
 
 function renderRanks() {
@@ -418,84 +461,4 @@ function renderRanks() {
     return;
   }
   const head = `<tr><th>Bài hát</th>${Object.values(CHARTS).map(v => `<th>${v}</th>`).join("")}</tr>`;
-  const rowFor = (name, id) => `<tr><td>${name}</td>${Object.keys(CHARTS).map(k =>
-    `<td>${rankCell(id === ALBUM ? k : k + ":" + id)}</td>`).join("")}</tr>`;
-  const body = rowFor("<b>Album THĂNG</b>", ALBUM) + tracks.map(t => rowFor(t.title, t.id)).join("");
-  document.getElementById("ranks").innerHTML = `<table>${head}${body}</table>`;
-}
-
-function renderRankChart() {
-  const key = rTrack === ALBUM ? rChart : rChart + ":" + rTrack;
-  drawChart(document.getElementById("rankChart"), rankSeries(key), "#89CFF0", { invert: true });
-}
-
-// ---------- thẻ, bảng, biểu đồ chính ----------
-function renderCards() {
-  const [yc, yd] = latestDelta(ytPts("all"));
-  const [sc, sd] = latestDelta(streamPts("all"));
-  const [lc, ld] = latestDelta(listenerPts());
-  const cards = [
-    ["Lượt xem YouTube", yc, yd, "so với 1 giờ trước"],
-    ["Spotify (stream)", sc, sd, "so với hôm qua"],
-    ["Người nghe hàng tháng", lc, ld, "so với hôm qua"],
-  ];
-  document.getElementById("cards").innerHTML = cards.map(([name, cur, d, note]) => {
-    const cls = d > 0 ? "up" : d < 0 ? "down" : "";
-    return `<div class="card">
-      <div class="label"><span class="dot"></span>${name}</div>
-      <div class="big">${fmt(cur)}</div>
-      <div class="delta ${cls}">${d == null ? "– " + note : fmtD(d) + " " + note}</div>
-    </div>`;
-  }).join("");
-}
-function renderChartMain() {
-  drawChart(document.getElementById("chart"), chartPts(metric, sel), METRICS[metric].color, { bar: mode !== "total" });
-}
-function renderTable() {
-  const head = `<tr><th>Bài hát</th><th>YouTube</th><th>+1 giờ</th><th>Spotify</th><th>+1 ngày</th></tr>`;
-  const rows = tracks.map(t => {
-    const [yc, yd] = latestDelta(ytPts(t.id));
-    const [sc, sd] = latestDelta(streamPts(t.id));
-    const thumb = t.youtube_id
-      ? `<img src="https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg" alt="" width="64" height="36" loading="lazy" style="object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:10px">`
-      : `<span style="display:inline-block;width:64px;height:36px;border-radius:6px;background:var(--line);vertical-align:middle;margin-right:10px"></span>`;
-    const links = [
-      t.youtube_id ? `<a href="https://www.youtube.com/watch?v=${t.youtube_id}" target="_blank" rel="noopener">YouTube</a>` : "",
-      t.spotify_url ? `<a href="${t.spotify_url}" target="_blank" rel="noopener">Spotify</a>` : "",
-    ].filter(Boolean).join(" · ");
-    return `<tr>
-      <td>${thumb}<span>${t.title}</span><div class="links">${links}</div></td>
-      <td class="${yc == null ? "na" : ""}">${fmt(yc)}</td>
-      <td class="${yd > 0 ? "up" : "na"}">${fmtD(yd)}</td>
-      <td class="${sc == null ? "na" : ""}">${fmt(sc)}</td>
-      <td class="${sd > 0 ? "up" : "na"}">${fmtD(sd)}</td>
-    </tr>`;
-  }).join("");
-  document.getElementById("table").innerHTML = head + rows;
-}
-
-function render() {
-  renderButtons();
-  const last = snaps[snaps.length - 1];
-  const parts = ["YouTube: " + (last ? last.ts.replace("T", " ").slice(0, 16) : "chưa có")];
-  if (sheet.updated) parts.push("Sheet: " + sheet.updated.replace("T", " ").slice(0, 16));
-  parts.push("Trang làm mới lúc " + new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }));
-  document.getElementById("updated").textContent = parts.join(" · ");
-  renderCards();
-  renderPeaks();     {/* Gọi hàm render khung Peak */}
-  renderRanks();
-  renderChartMain();
-  renderRankChart();
-  renderTable();
-}
-
-async function refresh() {
-  await fetchAll();
-  if (!inited) { initSelects(); inited = true; }
-  render();
-}
-refresh();
-setInterval(refresh, REFRESH_MS);
-</script>
-</body>
-</html>
+  const rowFor = (name, id) => `<tr><td>${name}</td>${Object.keys(CHARTS).map
