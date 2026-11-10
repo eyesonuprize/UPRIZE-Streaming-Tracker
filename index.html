@@ -65,6 +65,20 @@
   .pk-list em { font-style: normal; color: var(--muted); font-size: 12px; }
   .badge { display: inline-block; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; margin-left: 6px; }
   @media (max-width: 640px) { .peak.main { grid-column: auto; } }
+  .peak { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+  .peak:hover { transform: scale(1.06); position: relative; z-index: 3; border-color: var(--accent);
+    box-shadow: 0 14px 40px rgba(137,207,240,.35); }
+  #modal { position: fixed; inset: 0; background: rgba(3,10,14,.72); display: none; align-items: center;
+    justify-content: center; padding: 16px; z-index: 50; }
+  #modal.open { display: flex; }
+  #modal .box { position: relative; width: min(560px, 100%); }
+  #modal .peak, #modal .peak:hover { cursor: default; transform: none; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  #modal .peak.big .pk-num { font-size: 84px; }
+  #modal .peak.big .pk-img { width: 220px; height: 124px; }
+  #modal .peak.big .pk-what { font-size: 20px; }
+  #modal .peak.big .pk-list li { font-size: 15px; padding: 8px 0; }
+  #mClose { position: absolute; top: -14px; right: -8px; width: 38px; height: 38px; padding: 0;
+    background: var(--accent); color: var(--accent-ink); border: 0; font-size: 18px; font-weight: 700; }
   #tip { position: absolute; display: none; pointer-events: none; z-index: 9; white-space: nowrap;
     background: #06222f; border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px;
     font-size: 13px; color: var(--text); }
@@ -120,6 +134,7 @@
   </footer>
 </div>
 <div id="tip"></div>
+<div id="modal"><div class="box"><button id="mClose" aria-label="Đóng">✕</button><div id="mBody"></div></div></div>
 
 <script>
 const METRICS = {
@@ -403,7 +418,19 @@ function renderPeaks() {
       <ul class="pk-list">${list}</ul>
     </div>`;
   }).join("");
+  el.querySelectorAll(".peak").forEach(t => t.onclick = () => openModal(t));
 }
+
+function openModal(tile) {
+  const cls = tile.classList.contains("main") ? "main" : "";
+  document.getElementById("mBody").innerHTML = `<div class="peak big ${cls}">${tile.innerHTML}</div>`;
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+document.getElementById("modal").onclick = e => {
+  if (e.target.id === "modal" || e.target.id === "mClose") closeModal();
+};
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 
 function renderRankChart() {
   const key = rTrack === ALBUM ? rChart : rChart + ":" + rTrack;
