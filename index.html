@@ -325,9 +325,32 @@ function ytPts(s) {
     date: h.date,
     label: h.ts.slice(8, 10) + "/" + h.ts.slice(5, 7) + " " + h.ts.slice(11, 16),
     v: sumOf(h.yt, idsFor(s)),
+    t: new Date(h.ts).getTime(),
   })).filter(p => p.v != null);
 }
 function ytDaily(s) { return lastPerDate(ytPts(s)).map(p => ({ ...p, label: p.date })); }
+// Tốc độ tăng YouTube quy về "mỗi giờ" theo khoảng cách thật giữa 2 snapshot.
+// Bỏ qua khoảng quá 3 giờ (thường do bị lỡ lần chạy) để không làm sai số.
+function ytRates(s) {
+  const p = ytPts(s), out = [];
+  for (let i = 1; i < p.length; i++) {
+    const hrs = (p[i].t - p[i - 1].t) / 3600000;
+    if (hrs <= 0 || hrs > 3) continue;
+    out.push({ label: p[i].label, t: p[i].t, v: (p[i].v - p[i - 1].v) / hrs });
+  }
+  return out;
+}
+function ytLatest(s) {
+  const p = ytPts(s);
+  if (!p.length) return [null, null];
+  const last = p[p.length - 1], prev = p[p.length - 2];
+  let rate = null;
+  if (prev) {
+    const hrs = (last.t - prev.t) / 3600000;
+    if (hrs > 0 && hrs <= 3) rate = Math.round((last.v - prev.v) / hrs);
+  }
+  return [last.v, rate];
+}
 function streamPts(s) {
   return Object.keys(sheet.stream).sort().map(d => ({ date: d, label: d, v: sumOf(sheet.stream[d], idsFor(s)) }))
     .filter(p => p.v != null);
@@ -344,6 +367,7 @@ function basePts(m, s) {
   return listenerPts();
 }
 function chartPts(m, s) {
+  if (m === "yt" && mode === "hour") return ytRates(s).slice(-168).filter(p => p.v > 0);
   const b = basePts(m, s);
   if (mode === "total") return b;
   // YouTube/Spotify chỉ tăng: bỏ số âm (thường do thiếu ngày trong dữ liệu).
@@ -586,7 +610,7 @@ function renderRankChart() {
 
 // ---------- thẻ, bảng, biểu đồ chính ----------
 function renderCards() {
-  const [yc, yd] = latestDelta(ytPts("all"));
+  const [yc, yd] = ytLatest("all");
   const [sc, sd] = latestDelta(streamPts("all"));
   const [lc, ld] = latestDelta(listenerPts());
   const cards = [
@@ -615,7 +639,7 @@ function renderChartMain() {
 function renderTable() {
   const head = `<tr><th>Bài hát</th><th>YouTube</th><th>+1 giờ</th><th>Spotify</th><th>+1 ngày</th></tr>`;
   const rows = tracks.map(t => {
-    const [yc, yd] = latestDelta(ytPts(t.id));
+    const [yc, yd] = ytLatest(t.id);
     const [sc, sd] = latestDelta(streamPts(t.id));
     const cov = coverOf(t.id);
     const thumb = cov
