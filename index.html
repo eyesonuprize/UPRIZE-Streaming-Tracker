@@ -112,6 +112,26 @@
   .chart-legend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 13px; color: #9fb8c6; }
   .chart-legend:empty { display: none; }
   .sm { display: none; }
+  #ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .bx-card { background: linear-gradient(160deg, #16303f, #0f1d27); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .bx-head { color: var(--accent); font-weight: 800; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; padding-bottom: 8px; }
+  .bx-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid rgba(127,163,181,.18); }
+  .bx-song { display: flex; align-items: center; min-width: 0; }
+  .bx-song .mini { width: 32px; height: 32px; margin-right: 8px; flex: none; }
+  .bx-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bx-album .bx-name { font-weight: 700; color: var(--accent); }
+  .bx-rank { display: flex; align-items: center; gap: 6px; flex: none; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .bx-rank em { font-style: normal; font-size: 12px; font-weight: 700; }
+  .rb { font-weight: 800; padding: 3px 9px; border-radius: 999px; min-width: 46px; text-align: center; border: 1px solid var(--line); }
+  .rb-top { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .rb-mid { color: var(--accent); border-color: var(--accent); }
+  .rb-low { color: var(--text); }
+  .rb-out { color: var(--muted); font-weight: 500; font-size: 12px; border: 0; min-width: 0; padding: 3px 0; }
+  @media (max-width: 640px) {
+    .bx-song .mini { width: 26px; height: 26px; }
+    .bx-name { font-size: 12px; }
+    .rb { min-width: 40px; padding: 2px 7px; }
+  }
   @media (max-width: 640px) {
     .wrap { padding: 14px 10px 40px; }
     .panel { padding: 12px 10px; margin-bottom: 12px; }
@@ -171,13 +191,18 @@
   <section class="cards" id="cards"></section>
 
   <section class="panel">
-    <h2>Bảng xếp hạng · Việt Nam</h2>
-    <div class="scroll" id="ranks"></div>
+    <h2>Peak · Thứ hạng cao nhất từng đạt</h2>
+    <div class="peaks" id="peaks"></div>
   </section>
 
   <section class="panel">
-    <h2>Peak · Thứ hạng cao nhất từng đạt</h2>
-    <div class="peaks" id="peaks"></div>
+    <h2>Thứ hạng trên các bảng xếp hạng · Việt Nam</h2>
+    <div id="ranks"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Lượt nghe &amp; stream trên các nền tảng của từng ca khúc</h2>
+    <div class="scroll"><table id="table"></table></div>
   </section>
 
   <section class="panel">
@@ -195,11 +220,6 @@
       <select id="rankTrackSel"></select>
     </div>
     <div id="rankChart"></div>
-  </section>
-
-  <section class="panel">
-    <h2>Theo từng bài</h2>
-    <div class="scroll"><table id="table"></table></div>
   </section>
 
   <section class="panel">
@@ -445,6 +465,17 @@ function rankSeries(key) {
   return rankDates().filter(d => typeof sheet.ranks[d][key] === "number")
     .map(d => ({ date: d, label: d, v: sheet.ranks[d][key] }));
 }
+function rankBadge(key) {
+  const ds = rankDates();
+  if (!ds.length) return '<span class="rb rb-out">–</span>';
+  const v = sheet.ranks[ds[ds.length - 1]][key];
+  if (typeof v !== "number") return '<span class="rb rb-out">chưa lọt top</span>';
+  const s = rankSeries(key), prev = s.length > 1 ? s[s.length - 2].v : null;
+  const ch = prev == null ? null : prev - v;
+  const tier = v <= 10 ? "rb-top" : v <= 50 ? "rb-mid" : "rb-low";
+  const tag = !ch ? "" : ch > 0 ? `<em class="up">▲${ch}</em>` : `<em class="down">▼${-ch}</em>`;
+  return `<span class="rb ${tier}">#${v}</span>${tag}`;
+}
 function rankCell(key) {
   const ds = rankDates();
   if (!ds.length) return '<span class="na">–</span>';
@@ -456,16 +487,32 @@ function rankCell(key) {
     : ch > 0 ? ` <span class="up">▲${ch}</span>` : ` <span class="down">▼${-ch}</span>`;
   return `<b>#${v}</b>${tag}`;
 }
+const PF = { spotify_vn: "Spotify", apple_music_vn: "Apple Music", itunes_vn: "iTunes" };
+function rankPill(key, label) {
+  const ds = rankDates();
+  const v = ds.length ? sheet.ranks[ds[ds.length - 1]][key] : undefined;
+  if (typeof v !== "number") return `<div class="pill off"><small>${label}</small><b>–</b><em>ngoài top</em></div>`;
+  const s = rankSeries(key), prev = s.length > 1 ? s[s.length - 2].v : null;
+  let tag = "";
+  if (prev != null) {
+    const ch = prev - v;
+    tag = ch > 0 ? `<em class="up">▲${ch}</em>` : ch < 0 ? `<em class="down">▼${-ch}</em>` : `<em class="na">=</em>`;
+  }
+  return `<div class="pill"><small>${label}</small><b>#${v}</b>${tag}</div>`;
+}
 function renderRanks() {
   if (!rankDates().length) {
     document.getElementById("ranks").innerHTML = '<div class="empty">Chưa có dữ liệu thứ hạng.</div>';
     return;
   }
-  const head = `<tr><th>Bài hát</th>${Object.values(CHARTS).map(v => `<th>${v}</th>`).join("")}</tr>`;
-  const rowFor = (name, id) => `<tr><td>${coverOf(id) ? `<img class="mini" src="${coverOf(id)}" alt="">` : `<span class="mini"></span>`}${name}</td>${Object.keys(CHARTS).map(k =>
-    `<td>${rankCell(id === ALBUM ? k : k + ":" + id)}</td>`).join("")}</tr>`;
-  const body = rowFor("<b>Album THĂNG</b>", ALBUM) + tracks.map(t => rowFor(t.title, t.id)).join("");
-  document.getElementById("ranks").innerHTML = `<table>${head}${body}</table>`;
+  const items = [[ALBUM, "Album THĂNG"], ...tracks.map(t => [t.id, t.title])];
+  document.getElementById("ranks").innerHTML = Object.entries(CHARTS).map(([k, name]) => {
+    const rows = items.map(([id, title]) => `<div class="bx-row${id === ALBUM ? " bx-album" : ""}">
+        <div class="bx-song">${coverOf(id) ? `<img class="mini" src="${coverOf(id)}" alt="">` : `<span class="mini"></span>`}<span class="bx-name">${title}</span></div>
+        <div class="bx-rank">${rankBadge(id === ALBUM ? k : k + ":" + id)}</div>
+      </div>`).join("");
+    return `<div class="bx-card"><div class="bx-head">${name}</div>${rows}</div>`;
+  }).join("");
 }
 function coverOf(id) {
   const c = covers[id] || {};
