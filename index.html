@@ -69,6 +69,46 @@
   .mini { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; margin-right: 8px; vertical-align: middle; background: var(--line); }
   .pk-list li > span { display: flex; align-items: center; }
   .embed { border-radius: 12px; overflow: hidden; }
+  .onair { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; text-decoration: none; color: var(--text);
+    background: linear-gradient(120deg, #06222f, #0f2f3f 60%, #06222f); background-size: 200% 200%;
+    border: 1px solid var(--accent); border-radius: 16px; padding: 14px 18px; margin-bottom: 20px;
+    box-shadow: 0 0 24px rgba(137,207,240,.18); animation: drift 8s ease-in-out infinite; }
+  .onair:hover { box-shadow: 0 0 36px rgba(137,207,240,.4); }
+  .onair .pulse { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); position: relative; flex: none; }
+  .onair .pulse::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--accent);
+    animation: ping 1.6s ease-out infinite; }
+  .onair .oa-text { font-weight: 800; letter-spacing: .08em; font-size: 15px; color: var(--accent); }
+  .onair .oa-title { font-weight: 700; letter-spacing: .04em; flex: 1; min-width: 180px; }
+  .onair .oa-cta { color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 13px; }
+  @keyframes ping { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
+  @keyframes drift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @media (prefers-reduced-motion: reduce) { .onair, .onair .pulse::after, .vinyl { animation: none; } }
+  .oa-wrap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .vfb::before { content: "RIZER"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 900; font-size: 7px; letter-spacing: .06em; }
+  .vinyl { width: 60px; height: 60px; border-radius: 50%; position: relative; flex: none; margin: 0 auto;
+    background: repeating-radial-gradient(circle, #0c0c0f 0 2px, #1a1d22 3px 4px);
+    box-shadow: 0 0 0 3px #050608, 0 0 14px rgba(137,207,240,.3);
+    animation: spin 7s linear infinite; }
+  .vinyl::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0 12%, rgba(255,255,255,.14) 18%, transparent 26% 55%, rgba(137,207,240,.22) 62%, transparent 70%); }
+  .vlabel { position: absolute; inset: 27%; border-radius: 50%; overflow: hidden; background: #06222f;
+    display: flex; align-items: center; justify-content: center; }
+  .vlabel img { width: 100%; height: 100%; object-fit: cover; }
+  .vinyl::after { content: ""; position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; margin: -6px;
+    border-radius: 50%; background: #0b1218; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .oa-info { flex: 1; min-width: 240px; }
+  .oa-badge { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 800; letter-spacing: .06em; font-size: 12px; }
+  .dotp { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); position: relative; flex: none; }
+  .dotp::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid var(--accent); animation: ping 1.6s ease-out infinite; }
+  .oa-head { font-size: 12px; font-weight: 700; margin-top: 2px; letter-spacing: .03em; }
+  .oa-stats { display: flex; gap: 32px; margin: 14px 0 10px; flex-wrap: wrap; }
+  .oa-stats .big { font-size: 30px; }
+  .bar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .6s ease; }
+  .oa-cta2 { display: inline-block; margin-top: 6px; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 4px 11px; font-weight: 700; font-size: 11px; text-decoration: none; }
+  .onair-panel { background: linear-gradient(135deg, #0f2a38, #121c25 60%); padding: 8px 12px; }
+  .onair-panel .oa-head { font-size: 12px; }
   .peak { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
   .peak:hover { transform: scale(1.06); position: relative; z-index: 3; border-color: var(--accent);
     box-shadow: 0 14px 40px rgba(137,207,240,.35); }
@@ -96,6 +136,17 @@
     <h1>UPRIZE <span>Tracker</span></h1>
     <div class="updated" id="updated"></div>
   </header>
+
+  <section class="panel onair-panel">
+    <div class="oa-wrap">
+      <div class="vinyl"><div class="vlabel"><img src="images/rizer.png" alt="RIZER" onerror="if(!this.dataset.t){this.dataset.t=1;this.src='https://stationhead-production1-images.s3.amazonaws.com/images/Channel/logo/672/93177fff-3216-47a7-bac0-46f15c4c59aa.png'}else{this.style.display='none';this.parentNode.classList.add('vfb')}"></div></div>
+      <div class="oa-info">
+        <div class="oa-badge"><span class="dotp"></span>ĐANG ON AIR 24/24</div>
+        <div class="oa-head">STATIONHEAD CHÍNH THỨC CỦA UPRIZE</div>
+        <a class="oa-cta2" href="https://www.stationhead.com/c/rizer" target="_blank" rel="noopener">Vào nghe trên Stationhead ↗</a>
+      </div>
+    </div>
+  </section>
 
   <section class="cards" id="cards"></section>
 
@@ -385,7 +436,7 @@ function renderRanks() {
     return;
   }
   const head = `<tr><th>Bài hát</th>${Object.values(CHARTS).map(v => `<th>${v}</th>`).join("")}</tr>`;
-  const rowFor = (name, id) => `<tr><td>${name}</td>${Object.keys(CHARTS).map(k =>
+  const rowFor = (name, id) => `<tr><td>${coverOf(id) ? `<img class="mini" src="${coverOf(id)}" alt="">` : `<span class="mini"></span>`}${name}</td>${Object.keys(CHARTS).map(k =>
     `<td>${rankCell(id === ALBUM ? k : k + ":" + id)}</td>`).join("")}</tr>`;
   const body = rowFor("<b>Album THĂNG</b>", ALBUM) + tracks.map(t => rowFor(t.title, t.id)).join("");
   document.getElementById("ranks").innerHTML = `<table>${head}${body}</table>`;
