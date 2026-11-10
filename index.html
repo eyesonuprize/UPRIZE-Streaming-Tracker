@@ -53,8 +53,8 @@
   .peak.main { grid-column: span 2; background: linear-gradient(135deg, #89CFF0, #2b7aa0); border-color: #89CFF0; color: #06222f; }
   .peak.main .muted, .peak.main em { color: #06222f; opacity: .75; }
   .pk-top { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
-  .pk-img { width: 96px; height: 54px; border-radius: 8px; object-fit: cover; flex: none; background: var(--line); }
-  .peak.main .pk-img { width: 150px; height: 84px; }
+  .pk-img { width: 96px; height: 96px; border-radius: 10px; object-fit: cover; flex: none; background: var(--line); }
+  .peak.main .pk-img { width: 150px; height: 150px; }
   .pk-chart { font-size: 13px; color: var(--muted); }
   .peak.main .pk-chart { color: #06222f; font-weight: 600; }
   .pk-num { font-size: 36px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -65,6 +65,10 @@
   .pk-list em { font-style: normal; color: var(--muted); font-size: 12px; }
   .badge { display: inline-block; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; margin-left: 6px; }
   @media (max-width: 640px) { .peak.main { grid-column: auto; } }
+  .cov { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; vertical-align: middle; margin-right: 10px; background: var(--line); display: inline-block; }
+  .mini { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; margin-right: 8px; vertical-align: middle; background: var(--line); }
+  .pk-list li > span { display: flex; align-items: center; }
+  .embed { border-radius: 12px; overflow: hidden; }
   .peak { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
   .peak:hover { transform: scale(1.06); position: relative; z-index: 3; border-color: var(--accent);
     box-shadow: 0 14px 40px rgba(137,207,240,.35); }
@@ -74,7 +78,7 @@
   #modal .box { position: relative; width: min(560px, 100%); }
   #modal .peak, #modal .peak:hover { cursor: default; transform: none; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
   #modal .peak.big .pk-num { font-size: 84px; }
-  #modal .peak.big .pk-img { width: 220px; height: 124px; }
+  #modal .peak.big .pk-img { width: 220px; height: 220px; }
   #modal .peak.big .pk-what { font-size: 20px; }
   #modal .peak.big .pk-list li { font-size: 15px; padding: 8px 0; }
   #mClose { position: absolute; top: -14px; right: -8px; width: 38px; height: 38px; padding: 0;
@@ -126,6 +130,12 @@
     <div class="scroll"><table id="table"></table></div>
   </section>
 
+  <section class="panel">
+    <h2>Nghe UPRIZE trên Spotify</h2>
+    <iframe class="embed" src="https://open.spotify.com/embed/artist/0fve2D18BgaMHWQSBiqSzN?utm_source=generator&theme=0" width="100%" height="380" frameborder="0" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    <div class="muted" style="margin-top:8px">Nghe đầy đủ cần đăng nhập Spotify. Không đăng nhập thì chỉ nghe được đoạn xem trước.</div>
+  </section>
+
   <footer>
     YouTube cập nhật mỗi giờ. Spotify, người nghe hàng tháng và thứ hạng nhập từ Google Sheet.
     Ô thứ hạng trống nghĩa là bài chưa lọt top. Thứ hạng càng nhỏ càng cao (#1 là tốt nhất).
@@ -150,6 +160,7 @@ const REFRESH_MS = 5 * 60 * 1000;
 let tracks = [], snaps = [], sheet = { stream: {}, ranks: {} };
 let metric = "yt", mode = "hour", sel = "all", rChart = "spotify_vn", rTrack = ALBUM;
 let inited = false;
+let covers = {};
 
 const fmt = n => n == null ? "–" : Math.round(n).toLocaleString("vi-VN");
 const fmtD = n => n == null ? "–" : (n > 0 ? "+" : "") + Math.round(n).toLocaleString("vi-VN");
@@ -169,6 +180,7 @@ async function fetchAll() {
   tracks = (t && t.tracks) || [];
   const h = await getJSON("data/history.json");
   snaps = (Array.isArray(h) ? h : []).filter(x => x.yt).sort((a, b) => a.ts < b.ts ? -1 : 1);
+  covers = (await getJSON("data/covers.json")) || {};
   const s = (await getJSON("data/sheet.json")) || {};
   sheet = { stream: s.stream || {}, ranks: s.ranks || {}, updated: s.updated };
 }
@@ -378,6 +390,10 @@ function renderRanks() {
   const body = rowFor("<b>Album THĂNG</b>", ALBUM) + tracks.map(t => rowFor(t.title, t.id)).join("");
   document.getElementById("ranks").innerHTML = `<table>${head}${body}</table>`;
 }
+function coverOf(id) {
+  const c = covers[id] || {};
+  return c.spotify || c.apple || null;
+}
 function peakOf(key) {
   const s = rankSeries(key);
   if (!s.length) return null;
@@ -403,11 +419,18 @@ function renderPeaks() {
       return `<div class="peak ${isMain ? "main" : ""}"><div class="pk-chart">${cname}</div><div class="na">Chưa có peak</div></div>`;
     }
     const top = rows[0];
-    const thumb = top.it.yt
-      ? `<img class="pk-img" src="https://i.ytimg.com/vi/${top.it.yt}/hqdefault.jpg" alt="">`
-      : `<div class="pk-img"></div>`;
+    const topCov = coverOf(top.it.id);
+    const thumb = topCov
+      ? `<img class="pk-img" src="${topCov}" alt="">`
+      : top.it.yt
+        ? `<img class="pk-img" src="https://i.ytimg.com/vi/${top.it.yt}/hqdefault.jpg" alt="">`
+        : `<div class="pk-img"></div>`;
     const badge = top.p.v === 1 ? '<span class="badge">#1</span>' : "";
-    const list = rows.map(r => `<li><span>${r.it.title}</span><b>#${r.p.v}</b><em>${ddmm(r.p.date)}</em></li>`).join("");
+    const list = rows.map(r => {
+      const mc = coverOf(r.it.id);
+      const img = mc ? `<img class="mini" src="${mc}" alt="">` : `<span class="mini"></span>`;
+      return `<li><span>${img}${r.it.title}</span><b>#${r.p.v}</b><em>${ddmm(r.p.date)}</em></li>`;
+    }).join("");
     return `<div class="peak ${isMain ? "main" : ""}">
       <div class="pk-top">${thumb}<div>
         <div class="pk-chart">${cname} · cao nhất</div>
@@ -464,9 +487,12 @@ function renderTable() {
   const rows = tracks.map(t => {
     const [yc, yd] = latestDelta(ytPts(t.id));
     const [sc, sd] = latestDelta(streamPts(t.id));
-    const thumb = t.youtube_id
-      ? `<img src="https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg" alt="" width="64" height="36" loading="lazy" style="object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:10px">`
-      : `<span style="display:inline-block;width:64px;height:36px;border-radius:6px;background:var(--line);vertical-align:middle;margin-right:10px"></span>`;
+    const cov = coverOf(t.id);
+    const thumb = cov
+      ? `<img class="cov" src="${cov}" alt="" loading="lazy">`
+      : t.youtube_id
+        ? `<img class="cov" src="https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg" alt="" loading="lazy">`
+        : `<span class="cov"></span>`;
     const links = [
       t.youtube_id ? `<a href="https://www.youtube.com/watch?v=${t.youtube_id}" target="_blank" rel="noopener">YouTube</a>` : "",
       t.spotify_url ? `<a href="${t.spotify_url}" target="_blank" rel="noopener">Spotify</a>` : "",
