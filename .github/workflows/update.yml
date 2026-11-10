@@ -1,8 +1,6 @@
 name: Cập nhật số liệu mỗi giờ
 
 on:
-  schedule:
-    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -21,6 +19,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           SHEET_STREAM_CSV: ${{ secrets.SHEET_STREAM_CSV }}
           SHEET_RANK_CSV: ${{ secrets.SHEET_RANK_CSV }}
+          SHEET_TRACK_RANK_CSV: ${{ secrets.SHEET_TRACK_RANK_CSV }}
         run: python scripts/update.py
       - name: Commit dữ liệu mới
         run: |
