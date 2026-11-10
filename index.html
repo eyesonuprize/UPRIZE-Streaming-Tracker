@@ -111,6 +111,23 @@
   .onair-panel .oa-head { font-size: 12px; }
   .chart-legend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 13px; color: #9fb8c6; }
   .chart-legend:empty { display: none; }
+  .sm { display: none; }
+  @media (max-width: 640px) {
+    .wrap { padding: 14px 10px 40px; }
+    .panel { padding: 12px 10px; margin-bottom: 12px; }
+    h2 { margin-bottom: 8px; font-size: 15px; }
+    .controls { gap: 6px; margin-bottom: 8px; }
+    button, select { padding: 5px 10px; font-size: 13px; }
+    th, td { padding: 5px 4px; font-size: 13px; }
+    th { font-size: 11px; }
+    .cov, .mini { width: 30px; height: 30px; margin-right: 6px; border-radius: 6px; }
+    .links { margin-left: 36px; margin-top: 0; font-size: 11px; }
+    #table td:first-child, #ranks td:first-child { white-space: normal; min-width: 130px; }
+    #chart svg, #rankChart svg { height: 190px; width: auto; max-width: 100%; margin: 0 auto; }
+    .chart-legend { font-size: 12px; margin-top: 2px; }
+    .lg { display: none; }
+    .sm { display: inline; }
+  }
   .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
   .peak { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
   .peak:hover { transform: scale(1.06); position: relative; z-index: 3; border-color: var(--accent);
@@ -432,7 +449,7 @@ function rankCell(key) {
   const ds = rankDates();
   if (!ds.length) return '<span class="na">–</span>';
   const lastD = ds[ds.length - 1], v = sheet.ranks[lastD][key];
-  if (typeof v !== "number") return '<span class="na">chưa lọt top</span>';
+  if (typeof v !== "number") return '<span class="na"><span class="lg">chưa lọt top</span><span class="sm">ngoài top</span></span>';
   const s = rankSeries(key), prev = s.length > 1 ? s[s.length - 2].v : null;
   const ch = prev == null ? null : prev - v;
   const tag = ch == null ? "" : ch === 0 ? ' <span class="na">=</span>'
