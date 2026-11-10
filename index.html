@@ -48,6 +48,23 @@
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
   footer { color: var(--muted); font-size: 12px; margin-top: 24px; line-height: 1.6; }
+  .peaks { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .peak { background: linear-gradient(160deg, #16303f, #0f1d27); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .peak.main { grid-column: span 2; background: linear-gradient(135deg, #89CFF0, #2b7aa0); border-color: #89CFF0; color: #06222f; }
+  .peak.main .muted, .peak.main em { color: #06222f; opacity: .75; }
+  .pk-top { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .pk-img { width: 96px; height: 54px; border-radius: 8px; object-fit: cover; flex: none; background: var(--line); }
+  .peak.main .pk-img { width: 150px; height: 84px; }
+  .pk-chart { font-size: 13px; color: var(--muted); }
+  .peak.main .pk-chart { color: #06222f; font-weight: 600; }
+  .pk-num { font-size: 36px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .peak.main .pk-num { font-size: 64px; }
+  .pk-what { font-weight: 600; }
+  .pk-list { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+  .pk-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; padding: 5px 0; border-top: 1px solid rgba(127,163,181,.2); }
+  .pk-list em { font-style: normal; color: var(--muted); font-size: 12px; }
+  .badge { display: inline-block; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; margin-left: 6px; }
+  @media (max-width: 640px) { .peak.main { grid-column: auto; } }
   #tip { position: absolute; display: none; pointer-events: none; z-index: 9; white-space: nowrap;
     background: #06222f; border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px;
     font-size: 13px; color: var(--text); }
@@ -67,6 +84,11 @@
   <section class="panel">
     <h2>Bảng xếp hạng · Việt Nam</h2>
     <div class="scroll" id="ranks"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Peak · Thứ hạng cao nhất từng đạt</h2>
+    <div class="peaks" id="peaks"></div>
   </section>
 
   <section class="panel">
@@ -341,6 +363,48 @@ function renderRanks() {
   const body = rowFor("<b>Album THĂNG</b>", ALBUM) + tracks.map(t => rowFor(t.title, t.id)).join("");
   document.getElementById("ranks").innerHTML = `<table>${head}${body}</table>`;
 }
+function peakOf(key) {
+  const s = rankSeries(key);
+  if (!s.length) return null;
+  let best = s[0];
+  for (const p of s) if (p.v < best.v) best = p;
+  return best;
+}
+const ddmm = d => d.slice(8) + "/" + d.slice(5, 7);
+function renderPeaks() {
+  const el = document.getElementById("peaks");
+  if (!rankDates().length) {
+    el.innerHTML = '<div class="empty">Chưa có dữ liệu thứ hạng.</div>';
+    return;
+  }
+  const items = [{ id: ALBUM, title: "Album THĂNG", yt: "SS9GzAxVoow" }, ...tracks];
+  el.innerHTML = Object.entries(CHARTS).map(([ck, cname]) => {
+    const isMain = ck === "spotify_vn";
+    const rows = items
+      .map(it => ({ it, p: peakOf(it.id === ALBUM ? ck : ck + ":" + it.id) }))
+      .filter(r => r.p)
+      .sort((a, b) => a.p.v - b.p.v || a.p.date.localeCompare(b.p.date));
+    if (!rows.length) {
+      return `<div class="peak ${isMain ? "main" : ""}"><div class="pk-chart">${cname}</div><div class="na">Chưa có peak</div></div>`;
+    }
+    const top = rows[0];
+    const thumb = top.it.yt
+      ? `<img class="pk-img" src="https://i.ytimg.com/vi/${top.it.yt}/hqdefault.jpg" alt="">`
+      : `<div class="pk-img"></div>`;
+    const badge = top.p.v === 1 ? '<span class="badge">#1</span>' : "";
+    const list = rows.map(r => `<li><span>${r.it.title}</span><b>#${r.p.v}</b><em>${ddmm(r.p.date)}</em></li>`).join("");
+    return `<div class="peak ${isMain ? "main" : ""}">
+      <div class="pk-top">${thumb}<div>
+        <div class="pk-chart">${cname} · cao nhất</div>
+        <div class="pk-num">#${top.p.v}${badge}</div>
+        <div class="pk-what">${top.it.title}</div>
+        <div class="muted">đạt ngày ${ddmm(top.p.date)}</div>
+      </div></div>
+      <ul class="pk-list">${list}</ul>
+    </div>`;
+  }).join("");
+}
+
 function renderRankChart() {
   const key = rTrack === ALBUM ? rChart : rChart + ":" + rTrack;
   drawChart(document.getElementById("rankChart"), rankSeries(key), "#89CFF0", { invert: true });
@@ -400,6 +464,7 @@ function render() {
   document.getElementById("updated").textContent = parts.join(" · ");
   renderCards();
   renderRanks();
+  renderPeaks();
   renderChartMain();
   renderRankChart();
   renderTable();
