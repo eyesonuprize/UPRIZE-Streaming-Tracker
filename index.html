@@ -109,6 +109,9 @@
   .oa-cta2 { display: inline-block; margin-top: 6px; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 4px 11px; font-weight: 700; font-size: 11px; text-decoration: none; }
   .onair-panel { background: linear-gradient(135deg, #0f2a38, #121c25 60%); padding: 8px 12px; }
   .onair-panel .oa-head { font-size: 12px; }
+  .chart-legend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 13px; color: #9fb8c6; }
+  .chart-legend:empty { display: none; }
+  .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
   .peak { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
   .peak:hover { transform: scale(1.06); position: relative; z-index: 3; border-color: var(--accent);
     box-shadow: 0 14px 40px rgba(137,207,240,.35); }
@@ -165,6 +168,7 @@
     <div class="controls" id="modeBtns"></div>
     <div class="controls"><select id="trackSel"></select></div>
     <div id="chart"></div>
+    <div class="chart-legend" id="chartLegend"></div>
   </section>
 
   <section class="panel">
@@ -305,7 +309,10 @@ function basePts(m, s) {
 function chartPts(m, s) {
   const b = basePts(m, s);
   if (mode === "total") return b;
-  return b.slice(1).map((p, i) => ({ label: p.label, v: p.v - b[i].v }));
+  // YouTube/Spotify chỉ tăng: bỏ số âm (thường do thiếu ngày trong dữ liệu).
+  // Người nghe hàng tháng có thể giảm thật nên giữ cả số âm.
+  const keepSign = m === "ls";
+  return b.slice(1).map((p, i) => ({ label: p.label, v: p.v - b[i].v })).filter(p => keepSign || p.v > 0);
 }
 function latestDelta(pts) {
   if (!pts.length) return [null, null];
@@ -396,9 +403,11 @@ function drawChart(el, pts, color, o = {}) {
   });
   if (bar) {
     const bw = Math.max(3, Math.min(36, colW * 0.7)), y0 = yOf(0);
+    g += `<line x1="${L}" x2="${W - R}" y1="${y0}" y2="${y0}" stroke="#4d6b7d" stroke-width="1.5"/>`;
     pts.forEach((p, i) => {
       const y1 = yOf(p.v);
-      g += `<rect x="${x(i) - bw / 2}" y="${Math.min(y0, y1)}" width="${bw}" height="${Math.max(1, Math.abs(y0 - y1))}" rx="3" fill="${color}"/>`;
+      const fill = o.neg && p.v < 0 ? o.neg : color;
+      g += `<rect x="${x(i) - bw / 2}" y="${Math.min(y0, y1)}" width="${bw}" height="${Math.max(1, Math.abs(y0 - y1))}" rx="3" fill="${fill}"/>`;
     });
   } else {
     g += `<polyline fill="none" stroke="${color}" stroke-width="2.5" points="${pts.map((p, i) => x(i) + "," + yOf(p.v)).join(" ")}"/>`;
@@ -531,7 +540,13 @@ function renderCards() {
   }).join("");
 }
 function renderChartMain() {
-  drawChart(document.getElementById("chart"), chartPts(metric, sel), METRICS[metric].color, { bar: mode !== "total" });
+  const signed = metric === "ls" && mode !== "total";
+  drawChart(document.getElementById("chart"), chartPts(metric, sel), METRICS[metric].color,
+    { bar: mode !== "total", neg: signed ? "#ff7a7a" : null });
+  const lg = document.getElementById("chartLegend");
+  lg.innerHTML = signed
+    ? `<span><i style="background:${METRICS[metric].color}"></i>Tăng</span><span><i style="background:#ff7a7a"></i>Giảm</span>`
+    : "";
 }
 function renderTable() {
   const head = `<tr><th>Bài hát</th><th>YouTube</th><th>+1 giờ</th><th>Spotify</th><th>+1 ngày</th></tr>`;
