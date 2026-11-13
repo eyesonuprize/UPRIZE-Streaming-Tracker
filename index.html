@@ -6,21 +6,11 @@
 <title>UPRIZE Tracker</title>
 <style>
   :root {
-    --bg: #0b1218; --card: #121c25; --line: #1f2d38;
-    --text: #e8f6fd; --muted: #7fa3b5;
-    --accent: #89CFF0; --accent-ink: #06222f; --bad: #ff9e9e;
-    --overlay: rgba(11, 18, 24, .6); --glass: rgba(18, 28, 37, .58); --glass-line: rgba(255, 255, 255, .12);
-    --tile: linear-gradient(160deg, #16303f, #0f1d27); --onair: linear-gradient(135deg, #0f2a38, #121c25 60%);
-    --grid: #1f2d38; --zero: #4d6b7d; --chart-label: #7fa3b5; --tip-bg: #06222f;
-  }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --bg: #eaf6fc; --card: #ffffff; --line: #c9dfea; --text: #0b2a3a; --muted: #4f7385;
-      --accent: #1e7fb8; --accent-ink: #ffffff; --bad: #c0392b;
-      --overlay: rgba(255, 255, 255, 0); --glass: rgba(255, 255, 255, .66); --glass-line: rgba(20, 60, 80, .14);
-      --tile: linear-gradient(160deg, #ffffff, #e4f2f9); --onair: linear-gradient(135deg, #ffffff, #e4f2f9);
-      --grid: #d4e6ef; --zero: #7fa3b5; --chart-label: #4f7385; --tip-bg: #ffffff;
-    }
+    --bg: #eaf6fc; --card: #ffffff; --line: #c9dfea; --text: #0b2a3a; --muted: #4f7385;
+    --accent: #1e7fb8; --accent-ink: #ffffff; --bad: #c0392b;
+    --overlay: rgba(255, 255, 255, 0); --glass: rgba(255, 255, 255, .66); --glass-line: rgba(20, 60, 80, .14);
+    --tile: linear-gradient(160deg, #ffffff, #e4f2f9); --onair: linear-gradient(135deg, #ffffff, #e4f2f9);
+    --grid: #d4e6ef; --zero: #7fa3b5; --chart-label: #4f7385; --tip-bg: #ffffff;
   }
   :root[data-theme="light"] {
     --bg: #eaf6fc; --card: #ffffff; --line: #c9dfea; --text: #0b2a3a; --muted: #4f7385;
@@ -303,13 +293,11 @@ const tip = document.getElementById("tip");
   if (saved === "light" || saved === "dark") document.documentElement.setAttribute("data-theme", saved);
 })();
 function currentTheme() {
-  const t = document.documentElement.getAttribute("data-theme");
-  if (t) return t;
-  return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
 }
 function setThemeBtn() {
-  const next = currentTheme() === "light" ? "dark" : "light";
-  document.getElementById("themeBtn").textContent = next === "light" ? "☀ Sáng" : "☾ Tối";
+  // Nút hiển thị chế độ đang bật: đang sáng thì hiện "Sáng", đang tối thì hiện "Tối"
+  document.getElementById("themeBtn").textContent = currentTheme() === "light" ? "☀ Sáng" : "☾ Tối";
 }
 document.getElementById("themeBtn").addEventListener("click", () => {
   const next = currentTheme() === "light" ? "dark" : "light";
