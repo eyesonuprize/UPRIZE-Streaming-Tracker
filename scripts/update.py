@@ -96,8 +96,8 @@ def read_ranks(text):
             n = digits(v)
             if (h in RANK_COLS or ":" in h) and n is not None:
                 entry[h] = n
-        if entry:
-            out[r[0].strip()] = entry
+        # Giữ cả ngày trống (không ai lọt top) để web biết ngày mới nhất là ngày nào
+        out[r[0].strip()] = entry
     return out
 
 
