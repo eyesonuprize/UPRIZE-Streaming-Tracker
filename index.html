@@ -566,7 +566,8 @@ function rankBadge(key) {
   }
   if (!series.length) return '<span class="rb rb-out">chưa từng lọt top</span>';
   const last = series[series.length - 1];
-  return `<span class="rb rb-off">OUT</span><em class="muted-tag">từ #${last.v}</em>`;
+  const d = last.date.slice(8, 10) + "/" + last.date.slice(5, 7);
+  return `<span class="rb rb-off">OUT</span><em class="muted-tag">từ #${last.v} (đạt được ngày ${d})</em>`;
 }
 function rankCell(key) {
   const ds = rankDates();
