@@ -564,7 +564,7 @@ function rankBadge(key) {
     }
     return `<span class="rb ${tier}">#${v}</span>${tag}`;
   }
-  if (!series.length) return '<span class="rb rb-out">chưa lọt top</span>';
+  if (!series.length) return '<span class="rb rb-out">chưa từng lọt top</span>';
   const last = series[series.length - 1];
   return `<span class="rb rb-off">OUT</span><em class="muted-tag">từ #${last.v}</em>`;
 }
