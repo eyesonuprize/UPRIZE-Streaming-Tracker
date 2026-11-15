@@ -807,10 +807,14 @@ function tickerItems() {
   out.push("Cảm ơn các RIZER đã luôn chăm chỉ 💙");
   return out;
 }
+const TICKER_PX_PER_SEC = 60; // tốc độ chạy: số pixel mỗi giây, không phụ thuộc độ dài nội dung
 function renderTicker() {
   const one = tickerItems().map(t => `<span class="ticker-item">${t}</span>`).join("");
   const half = one.repeat(4); // lặp đủ dài để không bị hở khi chạy trên màn hình rộng
-  document.getElementById("ticker").innerHTML = half + half;
+  const track = document.getElementById("ticker");
+  track.innerHTML = half + half;
+  const halfWidth = track.scrollWidth / 2;
+  if (halfWidth > 0) track.style.animationDuration = Math.max(20, halfWidth / TICKER_PX_PER_SEC) + "s";
 }
 function render() {
   renderTicker();
