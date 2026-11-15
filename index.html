@@ -137,6 +137,23 @@
   .chart-legend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 13px; color: var(--muted); }
   .chart-legend:empty { display: none; }
   .sm { display: none; }
+  .ticker { overflow: hidden; background: var(--glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    color: var(--text); border-radius: 10px; margin-bottom: 14px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+  .ticker-track { display: flex; width: max-content; padding-left: 26px; animation: ticker 200s linear infinite; }
+  .ticker:hover .ticker-track { animation-play-state: paused; }
+  .ticker-item { display: inline-flex; align-items: center; white-space: nowrap; padding: 10px 0; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+  .ticker-item::after { content: ""; width: 6px; height: 6px; border-radius: 50%; margin: 0 26px; flex: none;
+    background: var(--accent); box-shadow: 0 0 6px var(--accent), 0 0 12px var(--accent); }
+  .ticker-item b { color: var(--accent); font-weight: 800; }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
+  .thanks { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 18px 8px 8px; text-align: center; }
+  .thanks p { margin: 0; font-size: 15px; font-weight: 700; color: var(--accent); }
+  .thanks img { width: 64px; height: 64px; object-fit: contain; }
+  .thanks .heart { font-size: 17px; }
+  @media (max-width: 640px) { .thanks img { width: 48px; height: 48px; } .thanks p { font-size: 14px; } }
   .rk-note { color: var(--muted); font-size: 12px; margin: -4px 0 12px; }
   #ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
   .bx-card { background: var(--tile); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
@@ -209,6 +226,8 @@
     <div class="updated" id="updated"></div>
     <button class="theme-btn" id="themeBtn" type="button"></button>
   </header>
+
+  <div class="ticker" aria-label="Tin chạy"><div class="ticker-track" id="ticker"></div></div>
 
   <section class="panel onair-panel">
     <div class="oa-wrap">
@@ -734,7 +753,68 @@ function renderTable() {
   document.getElementById("table").innerHTML = head + rows;
 }
 
+// ---------- tin chạy ngang ----------
+// Ngày phát hành (YYYY-MM-DD). Dùng để tính trivia.
+const RELEASES = {
+  album: "2026-06-26",
+  "intro-127": "2026-06-26", umbala: "2026-06-26", "chinh-la-cam-giac-nay": "2026-05-21",
+  "crazy-stupid-love": "2026-06-26", "first-dance": "2026-07-02", exposure: "2026-06-26",
+  "ngay-va-luon": "2026-07-02", thang: "2026-07-16", "valor-rises": "2026-06-18", "thang-rock": "2026-10-22",
+};
+const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+function tickerItems() {
+  const out = [];
+  const dmy = d => d.slice(8, 10) + "/" + d.slice(5, 7);
+  const sd0 = Object.keys(sheet.stream).sort();
+  const ref = sd0.length ? sd0[sd0.length - 1] : new Date().toISOString().slice(0, 10);
+  const ds = rankDates();
+  const sd = Object.keys(sheet.stream).sort();
+  // Thứ hạng hiện tại của album
+  if (ds.length) {
+    const last = sheet.ranks[ds[ds.length - 1]];
+    Object.entries(CHARTS).forEach(([k, name]) => {
+      if (typeof last[k] === "number") out.push(`<b>${name.toUpperCase()}</b> #${last[k]} · Album THĂNG`);
+    });
+  }
+  // Số ngày kể từ ngày phát hành (tính đến ngày dữ liệu mới nhất)
+  if (RELEASES.album) out.push(`Album THĂNG đã phát hành <b>${daysBetween(RELEASES.album, ref)}</b> ngày (đến ${dmy(ref)})`);
+  tracks.forEach(t => {
+    if (RELEASES[t.id]) out.push(`${t.title} đã phát hành <b>${daysBetween(RELEASES[t.id], ref)}</b> ngày (đến ${dmy(ref)})`);
+  });
+  // Số ngày để lên #1 trên từng bảng
+  Object.entries(CHARTS).forEach(([k, name]) => {
+    const first1 = rankSeries(k).find(p => p.v === 1);
+    if (first1) out.push(`Album THĂNG mất <b>${daysBetween(RELEASES.album, first1.date)}</b> ngày để lên #1 ${name}`);
+    tracks.forEach(t => {
+      if (!RELEASES[t.id]) return;
+      const f = rankSeries(`${k}:${t.id}`).find(p => p.v === 1);
+      if (f) out.push(`${t.title} mất <b>${daysBetween(RELEASES[t.id], f.date)}</b> ngày để lên #1 ${name}`);
+    });
+  });
+  // Trivia tính từ dữ liệu đã có
+  const ytNow = snaps.length ? sumOf(snaps[snaps.length - 1].yt, idsFor("all")) : null;
+  if (ytNow) out.push(`Tổng lượt xem MV: <b>${fmt(ytNow)}</b> (đến ${dmy(snaps[snaps.length - 1].date)})`);
+  if (sd.length) {
+    const spNow = sumOf(sheet.stream[sd[sd.length - 1]], idsFor("all"));
+    if (spNow) out.push(`Tổng stream Spotify: <b>${fmt(spNow)}</b> (đến ${dmy(sd[sd.length - 1])})`);
+  }
+  Object.entries(CHARTS).forEach(([k, name]) => {
+    const s = rankSeries(k);
+    if (!s.length) return;
+    const best = s.reduce((a, b) => (b.v < a.v ? b : a));
+    out.push(`Album THĂNG hạng cao nhất ${name}: <b>#${best.v}</b> (${dmy(best.date)})`);
+    out.push(`Album THĂNG có mặt trên ${name} <b>${s.length}</b> ngày, đến ${dmy(s[s.length - 1].date)}`);
+  });
+  out.push("Cảm ơn các RIZER đã luôn chăm chỉ 💙");
+  return out;
+}
+function renderTicker() {
+  const one = tickerItems().map(t => `<span class="ticker-item">${t}</span>`).join("");
+  const half = one.repeat(4); // lặp đủ dài để không bị hở khi chạy trên màn hình rộng
+  document.getElementById("ticker").innerHTML = half + half;
+}
 function render() {
+  renderTicker();
   renderButtons();
   const last = snaps[snaps.length - 1];
   const parts = ["YouTube: " + (last ? last.ts.replace("T", " ").slice(0, 16) : "chưa có")];
