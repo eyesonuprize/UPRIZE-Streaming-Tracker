@@ -348,7 +348,14 @@ async function fetchAll() {
   snaps = (Array.isArray(h) ? h : []).filter(x => x.yt).sort((a, b) => a.ts < b.ts ? -1 : 1);
   covers = (await getJSON("data/covers.json")) || {};
   const s = (await getJSON("data/sheet.json")) || {};
-  sheet = { stream: s.stream || {}, ranks: s.ranks || {}, updated: s.updated };
+  // Bỏ các dòng ngày trong tương lai (ví dụ dòng ngày mai đã tạo sẵn trong sheet)
+  const today = todayISO();
+  const keepPast = obj => Object.fromEntries(Object.entries(obj || {}).filter(([d]) => d <= today));
+  sheet = { stream: keepPast(s.stream), ranks: keepPast(s.ranks), updated: s.updated };
+}
+// Ngày hôm nay theo giờ Việt Nam, để khớp với sheet dù người xem ở múi giờ nào
+function todayISO() {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date());
 }
 
 function initSelects() {
@@ -586,10 +593,13 @@ function rankBadge(key) {
     }
     return `<span class="rk-line"><span class="rb ${tier}">#${v}</span>${tag}</span>`;
   }
-  if (!series.length) return '<span class="rk-line"><span class="rb rb-out">chưa từng lọt top</span></span>';
-  const last = series[series.length - 1];
-  const d = last.date.slice(8, 10) + "/" + last.date.slice(5, 7);
-  return `<span class="rk-line"><span class="rb rb-off">OUT</span></span><em class="muted-tag">từ #${last.v} (đạt được ngày ${d})</em>`;
+  // Ô ghi chữ OUT = bài rớt top. Ô trống = chưa cập nhật.
+  const last = series.length ? series[series.length - 1] : null;
+  const d = last ? last.date.slice(8, 10) + "/" + last.date.slice(5, 7) : "";
+  const detail = last ? `<em class="muted-tag">từ #${last.v} (đạt được ngày ${d})</em>` : "";
+  if (v === "OUT") return `<span class="rk-line"><span class="rb rb-off">OUT</span></span>${detail}`;
+  if (!last) return '<span class="rk-line"><span class="rb rb-out">chưa từng lọt top</span></span>';
+  return `<span class="rk-line"><span class="rb rb-out">chưa cập nhật</span></span>${detail}`;
 }
 function rankCell(key) {
   const ds = rankDates();
