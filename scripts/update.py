@@ -93,9 +93,13 @@ def read_ranks(text):
             continue
         entry = {}
         for h, v in zip(head[1:], r[1:]):
+            if not (h in RANK_COLS or ":" in h):
+                continue
             n = digits(v)
-            if (h in RANK_COLS or ":" in h) and n is not None:
+            if n is not None:
                 entry[h] = n
+            elif (v or "").strip().upper() == "OUT":
+                entry[h] = "OUT"  # bài rớt khỏi bảng xếp hạng
         # Giữ cả ngày trống (không ai lọt top) để web biết ngày mới nhất là ngày nào
         out[r[0].strip()] = entry
     return out
