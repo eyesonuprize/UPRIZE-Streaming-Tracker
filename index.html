@@ -137,6 +137,13 @@
   .chart-legend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 13px; color: var(--muted); }
   .chart-legend:empty { display: none; }
   .sm { display: none; }
+  .links { display: flex; flex-wrap: wrap; gap: 6px; }
+  .links a { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--glass); font-size: 12px; font-weight: 600; color: var(--text); text-decoration: none; transition: border-color .2s, transform .2s; }
+  .links a:hover { text-decoration: none; border-color: var(--accent); transform: translateY(-1px); }
+  .links a.yt { color: #ff5a4f; }
+  .links a.sp { color: #1db954; }
+  .links a svg { flex: none; }
   .ticker { overflow: hidden; background: var(--glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
     color: var(--text); border-radius: 10px; margin-bottom: 14px;
     -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
@@ -748,10 +755,12 @@ function renderTable() {
       : t.youtube_id
         ? `<img class="cov" src="https://i.ytimg.com/vi/${t.youtube_id}/hqdefault.jpg" alt="" loading="lazy">`
         : `<span class="cov"></span>`;
+    const ICON_YT = '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.2 3.6z"/></svg>';
+    const ICON_SP = '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M6 9.5c4-1.2 8.5-.8 12 1.2M6.6 13c3.4-1 7-.6 10 1M7.2 16.2c2.8-.8 5.6-.5 8 .8" stroke="#0b1218" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>';
     const links = [
-      t.youtube_id ? `<a href="https://www.youtube.com/watch?v=${t.youtube_id}" target="_blank" rel="noopener">YouTube</a>` : "",
-      t.spotify_url ? `<a href="${t.spotify_url}" target="_blank" rel="noopener">Spotify</a>` : "",
-    ].filter(Boolean).join(" · ");
+      t.youtube_id ? `<a class="yt" href="https://www.youtube.com/watch?v=${t.youtube_id}" target="_blank" rel="noopener">${ICON_YT}YouTube</a>` : "",
+      t.spotify_url ? `<a class="sp" href="${t.spotify_url}" target="_blank" rel="noopener">${ICON_SP}Spotify</a>` : "",
+    ].filter(Boolean).join("");
     return `<tr>
       <td>${thumb}<span>${t.title}</span><div class="links">${links}</div></td>
       <td class="${yc == null ? "na" : ""}">${fmt(yc)}</td>
